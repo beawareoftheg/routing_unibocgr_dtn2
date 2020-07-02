@@ -4,6 +4,7 @@
 
 #include "UniboCGRBundleRouter.h"
 #include "RouteTable.h"
+#include "uniboCGR/interface_unibocgr_dtn2.h"
 #include "bundling/BundleActions.h"
 #include "bundling/BundleDaemon.h"
 #include "bundling/TempBundle.h"
@@ -12,6 +13,8 @@
 #include "contacts/Link.h"
 #include "reg/Registration.h"
 #include "session/Session.h"
+
+#include "uniboCGR/interface_unibocgr_dtn2.h"
 
 namespace dtn {
 
@@ -30,8 +33,19 @@ UniboCGRBundleRouter::UniboCGRBundleRouter(const char* classname,
     // register the global shutdown function
     BundleDaemon::instance()->set_rtr_shutdown(
             unibo_cgr_router_shutdown, (void *) 0);
-   //Giacomo:: chiamo qua l'inizialize? da scoprire con degub
-
+   //Giacomo:: ownNode??
+   struct timeval tv;
+   gettimeofday(&tv, NULL);
+   EndpointID eid = BundleDaemon::instance()->local_eid_ipn();
+   std::string ipnName = eid.str();
+   std::string delimiter1 = ":";
+   std::string delimiter2 = ".";
+   std::string s = ipnName.substr(ipnName.find(delimiter1) + 1, ipnName.find(delimiter2) - 1);
+   std::stringstream convert;
+   long ownNode;
+   convert << s;
+   convert >> ownNode;
+   initialize_contact_graph_routing(ownNode, tv.tv_sec);
 }
 
 //----------------------------------------------------------------------
@@ -47,6 +61,7 @@ void UniboCGRBundleRouter::shutdown() {
 void
 UniboCGRBundleRouter::handle_event(BundleEvent* event)
 {
+   //Giacomo: che tipo di funzione è questa dispatch event?
     dispatch_event(event);
 }
 
@@ -424,7 +439,7 @@ UniboCGRBundleRouter::reroute_bundles(const LinkRef& link)
 
 //----------------------------------------------------------------------
 void
-TableBasedRouter::handle_changed_routes()
+UniboCGRBundleRouter::handle_changed_routes()
 {
     // clear the reception cache when the routes change since we might
     // want to send a bundle back where it came from

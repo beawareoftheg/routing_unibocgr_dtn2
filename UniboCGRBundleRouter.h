@@ -5,6 +5,7 @@
 
 #include "BundleRouter.h"
 #include "RouterInfo.h"
+#include "uniboCGR/interface_unibocgr_dtn2.h"
 #include "bundling/BundleInfoCache.h"
 #include "reg/Registration.h"
 #include "session/SessionTable.h"
@@ -15,14 +16,12 @@ class BundleList;
 class RouteEntryVec;
 
 /**
- * This is an abstract class that is intended to be used for all
- * routing algorithms that store routing state in a table.
+ * This is a class that implements UniboCGR's Bundle Routing
  */
 class UniboCGRBundleRouter : public BundleRouter {
-protected:
+public:
     /**
-     * Constructor -- protected since this class is never instantiated
-     * by itself.
+     * Constructor -- public
      */
     UniboCGRBundleRouter(const char* classname, const std::string& name);
 
@@ -73,22 +72,7 @@ protected:
      */
     void get_routing_state(oasys::StringBuffer* buf);
 
-    /**
-     * Get a tcl version of the routing state.
-     */
-    void tcl_dump_state(oasys::StringBuffer* buf);
 
-    /**
-     * Add a route entry to the routing table. 
-     * Set skip_changed_routes to true to skip the call to 
-     * handle_changed_routes if the initiating method is going to call it.
-     */
-    void add_route(RouteEntry *entry, bool skip_changed_routes=true);
-
-    /**
-     * Remove matrhing route entry(s) from the routing table. 
-     */
-    void del_route(const EndpointIDPattern& id);
 
     /**
      * Update forwarding state due to changed routes.
@@ -110,8 +94,7 @@ protected:
     virtual bool should_fwd(const Bundle* bundle, RouteEntry* route);
     
     /**
-     * Check the route table entries that match the given bundle and
-     * have not already been found in the bundle history. If a match
+     * Call the CGR to find matches. If a match
      * is found, call fwd_to_nexthop on it.
      * Set skip_check_next_hop to true to skip the call to 
      * check_next_hop().
@@ -119,7 +102,7 @@ protected:
      * @param bundle		the bundle to forward
      *
      * Returns the number of links on which the bundle was queued
-     * (i.e. the number of matching route entries.
+     * i.e. the number of matching entries found bu the CGR.
      */
     virtual int route_bundle(Bundle* bundle, bool skip_check_next_hop=false);
 
@@ -178,7 +161,7 @@ protected:
     BundleInfoCache reception_cache_;
 
     /// The routing table
-    RouteTable* route_table_;
+    //RouteTable* route_table_;
 
     /// Session state management table
     SessionTable sessions_;

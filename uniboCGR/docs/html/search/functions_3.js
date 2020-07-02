@@ -1,0 +1,22 @@
+var searchData=
+[
+  ['delete_5fcgr_5froute_697',['delete_cgr_route',['../routes_8c.html#a2b94d47dad0e6e76a5e65357ac7d20d3',1,'delete_cgr_route(void *data):&#160;routes.c'],['../routes_8h.html#a89a9d493b9d367ff32ab117984ff9c2b',1,'delete_cgr_route(void *):&#160;routes.c']]],
+  ['delete_5fmsr_5froute_698',['delete_msr_route',['../msr__utils_8c.html#ab9e94212479d91b80b3e05282adf4f05',1,'delete_msr_route(Route *route):&#160;msr_utils.c'],['../msr__utils_8h.html#ab9e94212479d91b80b3e05282adf4f05',1,'delete_msr_route(Route *route):&#160;msr_utils.c']]],
+  ['destroy_5fcgr_699',['destroy_cgr',['../cgr_8c.html#a6e513eca74606c577a25f41ced9a3189',1,'destroy_cgr(time_t time):&#160;cgr.c'],['../cgr_8h.html#a6e513eca74606c577a25f41ced9a3189',1,'destroy_cgr(time_t time):&#160;cgr.c']]],
+  ['destroy_5fcontact_5fgraph_5frouting_700',['destroy_contact_graph_routing',['../interface__cgr__ion_8c.html#ace1aece9d747477a5dc7499272811e2c',1,'destroy_contact_graph_routing(time_t time):&#160;interface_cgr_ion.c'],['../interface__cgr__ion_8h.html#ace1aece9d747477a5dc7499272811e2c',1,'destroy_contact_graph_routing(time_t time):&#160;interface_cgr_ion.c']]],
+  ['destroy_5fcontact_5fplan_701',['destroy_contact_plan',['../contact_plan_8c.html#ac243fb41601bf231c886cd601871bd68',1,'destroy_contact_plan():&#160;contactPlan.c'],['../contact_plan_8h.html#ac243fb41601bf231c886cd601871bd68',1,'destroy_contact_plan():&#160;contactPlan.c']]],
+  ['destroy_5fcontactsgraph_702',['destroy_ContactsGraph',['../contacts_8c.html#a555bf8dfbc77e72a0116c401f0b61d4a',1,'destroy_ContactsGraph():&#160;contacts.c'],['../contacts_8h.html#a555bf8dfbc77e72a0116c401f0b61d4a',1,'destroy_ContactsGraph():&#160;contacts.c']]],
+  ['destroy_5fmsr_703',['destroy_msr',['../msr_8c.html#a3a179b2fb15162ea535f36232f4c4b5a',1,'msr.c']]],
+  ['destroy_5fnodestree_704',['destroy_NodesTree',['../nodes_8c.html#adc9d245a8bbc7e7e1ab9c0bc308cc326',1,'destroy_NodesTree():&#160;nodes.c'],['../nodes_8h.html#adc9d245a8bbc7e7e1ab9c0bc308cc326',1,'destroy_NodesTree():&#160;nodes.c']]],
+  ['destroy_5fphase_5fone_705',['destroy_phase_one',['../cgr__phases_8h.html#a86f058d9a4ffc3d054904473172d5daf',1,'destroy_phase_one():&#160;phase_one.c'],['../phase__one_8c.html#a86f058d9a4ffc3d054904473172d5daf',1,'destroy_phase_one():&#160;phase_one.c']]],
+  ['destroy_5fphase_5ftwo_706',['destroy_phase_two',['../cgr__phases_8h.html#a8d8008e926aba4248946a793115e385d',1,'destroy_phase_two():&#160;phase_two.c'],['../phase__two_8c.html#a8d8008e926aba4248946a793115e385d',1,'destroy_phase_two():&#160;phase_two.c']]],
+  ['destroy_5frangesgraph_707',['destroy_RangesGraph',['../ranges_8c.html#ae066c42658aa8a002cf001505eb335ff',1,'destroy_RangesGraph():&#160;ranges.c'],['../ranges_8h.html#ae066c42658aa8a002cf001505eb335ff',1,'destroy_RangesGraph():&#160;ranges.c']]],
+  ['destroy_5froutes_5flist_708',['destroy_routes_list',['../routes_8c.html#a7480bc1ea835eca837431106df9f3331',1,'destroy_routes_list(List routes):&#160;routes.c'],['../routes_8h.html#a7480bc1ea835eca837431106df9f3331',1,'destroy_routes_list(List routes):&#160;routes.c']]],
+  ['destroyrbtnodes_709',['destroyRbtNodes',['../rbt_8c.html#aaef2311c47e1eaf611c847f9af6ba236',1,'rbt.c']]],
+  ['dijkstra_5fsearch_710',['dijkstra_search',['../phase__one_8c.html#a030a9e5bee0ac127896a1803755c5e15',1,'phase_one.c']]],
+  ['discardallroutes_711',['discardAllRoutes',['../cgr_8c.html#a62794e191dc1e7cbecc8b8609bc41348',1,'cgr.c']]],
+  ['discardallroutesfromcontactsgraph_712',['discardAllRoutesFromContactsGraph',['../contacts_8c.html#a8866265b61a02a1443c5b762650c1a75',1,'discardAllRoutesFromContactsGraph():&#160;contacts.c'],['../contacts_8h.html#a8866265b61a02a1443c5b762650c1a75',1,'discardAllRoutesFromContactsGraph():&#160;contacts.c']]],
+  ['discardallroutesfromnodestree_713',['discardAllRoutesFromNodesTree',['../nodes_8c.html#a1fa66166bc588f0c435ff3f2b91dd52c',1,'discardAllRoutesFromNodesTree():&#160;nodes.c'],['../nodes_8h.html#a1fa66166bc588f0c435ff3f2b91dd52c',1,'discardAllRoutesFromNodesTree():&#160;nodes.c']]],
+  ['discardroute_714',['discardRoute',['../nodes_8c.html#aec1f538e8c7d26fc3566f7801ca012cc',1,'nodes.c']]],
+  ['dividecgrscalar_715',['divideCgrScalar',['../scalar_8c.html#af209615b311a3a0a5748cac3684a76f2',1,'divideCgrScalar(CgrScalar *s, long int i):&#160;scalar.c'],['../scalar_8h.html#acb6595954099fcc04b643cd038bbe095',1,'divideCgrScalar(CgrScalar *, long int):&#160;scalar.c']]]
+];

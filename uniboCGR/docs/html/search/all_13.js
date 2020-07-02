@@ -1,0 +1,19 @@
+var searchData=
+[
+  ['units_547',['units',['../struct_cgr_scalar.html#a2514067cacf9ac04393c9b5db62a7fd5',1,'CgrScalar']]],
+  ['unset_5fbackward_5fpropagation_548',['UNSET_BACKWARD_PROPAGATION',['../bundles_8h.html#a9aed48211971ea3a3f982684d3b46d17',1,'bundles.h']]],
+  ['unset_5fcandidate_5froutes_5ffound_549',['UNSET_CANDIDATE_ROUTES_FOUND',['../nodes_8h.html#afe8f60a3e44a2e14d168f3709abb4e0e',1,'nodes.h']]],
+  ['unset_5fcomputed_550',['UNSET_COMPUTED',['../nodes_8h.html#a691b3690d332a4c80ef8125a0d0f9981',1,'nodes.h']]],
+  ['unset_5fcritical_551',['UNSET_CRITICAL',['../bundles_8h.html#a1e0145a6ce25c63b25d4f968dc414350',1,'bundles.h']]],
+  ['unset_5ffragmentable_552',['UNSET_FRAGMENTABLE',['../bundles_8h.html#a44fd2e7a1ea4ffed0887216ad9e0b423',1,'bundles.h']]],
+  ['unset_5fneighbors_5fdiscovered_553',['UNSET_NEIGHBORS_DISCOVERED',['../nodes_8h.html#a13275388dc8916b0fd9fb8ab5fe66305',1,'nodes.h']]],
+  ['unset_5fprobe_554',['UNSET_PROBE',['../bundles_8h.html#ac8cb2eaf5ce032e8a983558c3e81319e',1,'bundles.h']]],
+  ['unset_5froutes_5fin_5fsubset_555',['UNSET_ROUTES_IN_SUBSET',['../nodes_8h.html#a1e7ff288e042c0a8bfd02fe2fdff9b41',1,'nodes.h']]],
+  ['unset_5froutes_5fnot_5ffound_556',['UNSET_ROUTES_NOT_FOUND',['../nodes_8h.html#ab5b75811767f51a76674ed4f489a3a50',1,'nodes.h']]],
+  ['update_5fcontact_5fplan_557',['update_contact_plan',['../interface__cgr__ion_8c.html#a6eb2ba1079ba23c9154e942e35b76187',1,'interface_cgr_ion.c']]],
+  ['update_5fcost_5fvalues_558',['update_cost_values',['../phase__one_8c.html#af7bc416ce787c5da5d596620d68db657',1,'phase_one.c']]],
+  ['update_5fneighbors_5fcounter_559',['update_neighbors_counter',['../phase__two_8c.html#ad0548bf74d27974e3ce141b09ef4fb4f',1,'phase_two.c']]],
+  ['update_5freferences_560',['update_references',['../routes_8c.html#ab6083cb68a0423bf40e3b47e7a82195a',1,'routes.c']]],
+  ['update_5fvolumes_561',['update_volumes',['../phase__three_8c.html#a7f0276f177013901f4fecdbfd326e367',1,'phase_three.c']]],
+  ['userdata_562',['userData',['../structlist.html#a2e294dd14122c554baa0665072b4ca7a',1,'list::userData()'],['../structrbt.html#a2e294dd14122c554baa0665072b4ca7a',1,'rbt::userData()']]]
+];
