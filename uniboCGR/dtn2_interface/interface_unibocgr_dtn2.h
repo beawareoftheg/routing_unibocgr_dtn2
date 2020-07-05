@@ -17,6 +17,7 @@
 #define SOURCES_INTERFACE_UNIBO_CGR_DTN2_H_
 
 //include from dtn2
+#include "../bundling/bundle.h"
 
 #include "../../../../ici/include/ion.h"
 #include "../../../../ici/include/platform.h"
@@ -33,6 +34,11 @@
 // (same name used in ION and in this CGR implementation)
 #endif
 
+//DTN2 is written in c++
+#ifndef __cplusplus
+#define __cplusplus
+#endif
+
 #include "../msr/msr.h"
 #include <sys/time.h>
 
@@ -41,8 +47,8 @@ extern "C"
 {
 #endif
 
-extern int callUniboCGR(time_t time, CgrVdb *cgrvdb, Bundle *bundle,
-		IonNode *terminusNode, Lyst IonRoutes);
+extern int callUniboCGR(time_t time, Bundle *bundle,
+		 Lyst IonRoutes);
 extern void destroy_contact_graph_routing(time_t time);
 extern int initialize_contact_graph_routing(unsigned long long ownNode, time_t time);
 

@@ -86,9 +86,9 @@ static int initialized = 0;
  */
 static List excludedNeighbors = NULL;
 /**
- * \brief The current bundle received from ION.
+ * \brief The current bundle received from DTN2.
  */
-static Bundle *IonBundle = NULL;
+static Bundle *Dtn2Bundle = NULL;
 /**
  * \brief CgrBundle used during the current call.
  */
@@ -374,15 +374,15 @@ static int get_cgrr_ext_block(Bundle *bundle, CGRRouteBlock **resultBlk)
 /******************************************************************************
  *
  * \par Function Name:
- *      convert_bundle_from_ion_to_cgr
+ *      convert_bundle_from_dtn2_to_cgr
  *
- * \brief Convert the characteristics of the bundle from ION to
+ * \brief Convert the characteristics of the bundle from DTN2 to
  *        this CGR's implementation and initialize all the
- *        bundle fields used by the CGR.
+ *        bundle fields used by the Unibo CGR.
  *
  *
  * \par Date Written:
- *      19/02/20
+ *      05/07/20
  *
  * \return int
  *
@@ -392,7 +392,7 @@ static int get_cgrr_ext_block(Bundle *bundle, CGRRouteBlock **resultBlk)
  *
  * \param[in]    toNode             The destination ipn node for the bundle
  * \param[in]    current_time       The current time, in differential time from reference_time
- * \param[in]    *IonBundle         The bundle in ION
+ * \param[in]    *Dtn2Bundle        The bundle in DTN2
  * \param[out]   *CgrBundle         The bundle in this CGR's implementation.
  *
  * \par	Notes:
@@ -402,11 +402,11 @@ static int get_cgrr_ext_block(Bundle *bundle, CGRRouteBlock **resultBlk)
  *
  *  DD/MM/YY |  AUTHOR         |   DESCRIPTION
  *  -------- | --------------- | -----------------------------------------------
- *  19/02/20 | L. Persampieri  |  Initial Implementation and documentation.
- *  24/03/20 | L. Persampieri  |  Added geoRouteString
+ *  05/07/20 | G. Gori		    |  Initial Implementation and documentation.
  *****************************************************************************/
-static int convert_bundle_from_ion_to_cgr(unsigned long long toNode, time_t current_time, Bundle *IonBundle, CgrBundle *CgrBundle)
+static int convert_bundle_from_dtn2_to_cgr(unsigned long long toNode, time_t current_time, Bundle *Dtn2Bundle, CgrBundle *CgrBundle)
 {
+	//Giacomo: qua il codice è c, forse è meglio passare campi semplici invece che Bundle che è definito in c++?
 	int result = -1;
 	time_t offset;
 #if (MSR == 1)
@@ -416,7 +416,7 @@ static int convert_bundle_from_ion_to_cgr(unsigned long long toNode, time_t curr
 	GeoRoute geoRoute;
 #endif
 
-	if (IonBundle != NULL && CgrBundle != NULL)
+	if (Dtn2Bundle != NULL && CgrBundle != NULL)
 	{
 
 		CgrBundle->terminus_node = toNode;
@@ -1354,12 +1354,12 @@ static int exclude_neighbors()
  * \par Function Name:
  *      callCGR
  *
- * \brief  Entry point to call the CGR from ION, get the best routes to reach
+ * \brief  Entry point to call the CGR from DTN2, get the best routes to reach
  *         the destination for the bundle.
  *
  *
  * \par Date Written:
- *      19/02/20
+ *      05/07/20
  *
  * \return int
  *
@@ -1374,11 +1374,8 @@ static int exclude_neighbors()
  * \retval   -8   NULL pointer during conversion to ION's contact
  *
  * \param[in]     time              The current time
- * \param[in]     *ionvdb           The ION's volatile database
- * \param[in]     ionwm             The ION's memory partition
  * \param[in]     *cgrvdb           The ION's CGR volatile database
- * \param[in]     *bundle           The ION's bundle that has to be forwarded
- * \param[in]     *terminusNode     The destination node for the bundle
+ * \param[in]     *bundle           The DTN2's bundle that has to be forwarded
  * \param[out]    IonRoutes         The list of best routes found
  *
  *
@@ -1386,10 +1383,9 @@ static int exclude_neighbors()
  *
  *  DD/MM/YY |  AUTHOR         |   DESCRIPTION
  *  -------- | --------------- | -----------------------------------------------
- *  19/02/20 | L. Persampieri  |  Initial Implementation and documentation.
+ *  05/07/20 | G. Gori		    |  Initial Implementation and documentation.
  *****************************************************************************/
-int callCGR(time_t time, IonVdb *ionvdb, PsmPartition ionwm, CgrVdb *cgrvdb, Bundle *bundle,
-		IonNode *terminusNode, Lyst IonRoutes)
+int callCGR(time_t time, CgrVdb *cgrvdb, Bundle *bundle, Lyst IonRoutes)
 {
 	int result = -5;
 	List cgrRoutes = NULL;
@@ -1398,7 +1394,7 @@ int callCGR(time_t time, IonVdb *ionvdb, PsmPartition ionwm, CgrVdb *cgrvdb, Bun
 
 	debug_printf("Entry point interface.");
 
-	if (initialized && bundle != NULL && terminusNode != NULL && ionwm != NULL && ionvdb != NULL && cgrvdb != NULL)
+	if (initialized && bundle != NULL &&  cgrvdb != NULL)
 	{
 		// INPUT CONVERSION: check if the contact plan has been changed, in affermative case update it
 		result = update_contact_plan(ionwm, ionvdb);
@@ -1423,7 +1419,7 @@ int callCGR(time_t time, IonVdb *ionvdb, PsmPartition ionwm, CgrVdb *cgrvdb, Bun
 
 						if (result > 0 && cgrRoutes != NULL)
 						{
-							// OUTPUT CONVERSION: convert the best routes into ION's CgrRoute and
+							// OUTPUT CONVERSION: convert the best routes into DTN2's CgrRoute and
 							// put them into ION's Lyst
 							result = convert_routes_from_cgr_to_ion(ionwm, ionvdb, terminusNode,
 									cgrBundle->evc, cgrRoutes, IonRoutes);
