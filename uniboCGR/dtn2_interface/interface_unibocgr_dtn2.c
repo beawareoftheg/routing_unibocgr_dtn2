@@ -390,7 +390,7 @@ static int get_cgrr_ext_block(Bundle *bundle, CGRRouteBlock **resultBlk)
  * \retval -1  Arguments error
  * \retval -2  MWITHDRAW error
  *
- * \param[in]    toNode             The destination ipn node for the bundle
+ * \param[in]    toNode             The destination ipn node for the bundle (unsigned long long)
  * \param[in]    current_time       The current time, in differential time from reference_time
  * \param[in]    *Dtn2Bundle        The bundle in DTN2
  * \param[out]   *CgrBundle         The bundle in this CGR's implementation.
@@ -404,9 +404,10 @@ static int get_cgrr_ext_block(Bundle *bundle, CGRRouteBlock **resultBlk)
  *  -------- | --------------- | -----------------------------------------------
  *  05/07/20 | G. Gori		    |  Initial Implementation and documentation.
  *****************************************************************************/
-static int convert_bundle_from_dtn2_to_cgr(unsigned long long toNode, time_t current_time, Bundle *Dtn2Bundle, CgrBundle *CgrBundle)
+static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bundle, CgrBundle *CgrBundle)
 {
 	//Giacomo: qua il codice è c, forse è meglio passare campi semplici invece che Bundle che è definito in c++?
+	//Primo tentativo: faccio come se il codice fosse C++
 	int result = -1;
 	time_t offset;
 #if (MSR == 1)
@@ -418,8 +419,15 @@ static int convert_bundle_from_dtn2_to_cgr(unsigned long long toNode, time_t cur
 
 	if (Dtn2Bundle != NULL && CgrBundle != NULL)
 	{
-
-		CgrBundle->terminus_node = toNode;
+		std::string ipnName = Dtn2Bundle->dest()->str();
+		std::string delimiter1 = ":";
+		std::string delimiter2 = ".";
+		std::string s = ipnName.substr(ipnName.find(delimiter1) + 1, ipnName.find(delimiter2) - 1);
+		std::stringstream convert;
+		long destNode;
+		convert << s;
+		convert >> destNode;
+		CgrBundle->terminus_node = destNode;
 
 #if (MSR == 1)
 		CgrBundle->msrRoute = NULL;
@@ -445,28 +453,33 @@ static int convert_bundle_from_dtn2_to_cgr(unsigned long long toNode, time_t cur
 		if (result != -2)
 		{
 			CLEAR_FLAGS(CgrBundle->flags); //reset previous mask
-
-            if(IonBundle->ancillaryData.flags & BP_MINIMUM_LATENCY)
+				#ifdef ECOS_ENABLED
+            if(Dtn2Bundle->ecos_critical() & BP_MINIMUM_LATENCY)
             {
             	SET_CRITICAL(CgrBundle);
             }
-
+				#endif
+			//Non ho trovato info sul backward propagation
 			if (!(IS_CRITICAL(CgrBundle)) && IonBundle->returnToSender)
 			{
 				SET_BACKWARD_PROPAGATION(CgrBundle);
 			}
-			if(!(IonBundle->bundleProcFlags & BDL_DOES_NOT_FRAGMENT))
+			if(!(Dtn2Bundle->do_not_fragment() & BDL_DOES_NOT_FRAGMENT))
 			{
 				SET_FRAGMENTABLE(CgrBundle);
 			}
 
 			//TODO search probe field in ION's bundle...
-
-			CgrBundle->ordinal = (unsigned int) IonBundle->ordinal;
+			#ifdef ECOS_ENABLED
+			CgrBundle->ordinal = (unsigned int) Dtn2Bundle->ecos_ordinal();
+			#endif
 
 			//size computation ported by ION 4.0.0
 			CgrBundle->size = NOMINAL_PRIMARY_BLKSIZE + IonBundle->extensionsLength
-					+ IonBundle->payload.length;
+					+ Dtn2Bundle->durable_size();
+				//Giacomo: forse la lunghezza sta su gbofid? dovrai debuggare un po'
+				//durable_size() da la lunghezza del payload in size_t
+				//FERMO QUA
 
 			CgrBundle->evc = computeBundleEVC(CgrBundle->size); // SABR 2.4.3
 
@@ -813,7 +826,7 @@ static int search_route_in_ion_selected_routes(PsmPartition ionwm, Route *route,
  * \param[in]     *terminusNode   The node for which the routes have been computed
  * \param[in]     evc             Bundle's estimated volume consumption
  * \param[in]     cgrRoutes       The list of routes in CGR's format
- * \param[out]    IonRoutes       The list converted (only if return value is 0)
+ * \param[out]    *matches        The list converted (only if return value is 0)
  *
  *
  * \par Revision History:
@@ -822,9 +835,10 @@ static int search_route_in_ion_selected_routes(PsmPartition ionwm, Route *route,
  *  -------- | --------------- | -----------------------------------------------
  *  19/02/20 | L. Persampieri  |  Initial Implementation and documentation.
  *****************************************************************************/
-static int convert_routes_from_cgr_to_ion(PsmPartition ionwm, IonVdb *ionvdb, IonNode *terminusNode,
-		long unsigned int evc, List cgrRoutes, Lyst IonRoutes)
+static int convert_routes_from_cgr_to_dtn2(IonNode *terminusNode,
+		long unsigned int evc, List cgrRoutes, RouteEntryVec *matches)
 {
+	//Giacomo: il risultato del convert originale è mandato su un IonRoute che non è un puntatore
 	ListElt *elt;
 	PsmAddress addr, hops;
 	CgrRoute *IonRoute = NULL;
@@ -1274,6 +1288,7 @@ static int add_range(char* fileline)
  * \retval  -2  File error
  *
  * \param[in]   filename     The name of the file from which we read contacts
+ * \param[in]   update       Set true to update contact plan, false to not update
  *
  * \warning file should exist
  *
@@ -1283,16 +1298,15 @@ static int add_range(char* fileline)
  *  -------- | --------------- | -----------------------------------------------
  *  01/07/20 | G. Gori         |  Initial Implementation and documentation.
  *****************************************************************************/
-static int update_contact_plan(char * filename)
+static int update_contact_plan(char * filename, bool update)
 {
 	int result = -2;
 	int result_read;
    //Currently contacts are read from file, so we don't have any update during execution
    //Set a condition in this if() if you need to check for update
-	if (true)
+	if (update)
 	{
 		writeLog("#### Contact plan modified ####");
-      //Giacomo: implementa add new contacts e ranges
 		result_read = read_file_contactranges(filename);
 		if (result_read < 0) //Error
 		{
@@ -1352,7 +1366,7 @@ static int exclude_neighbors()
 /******************************************************************************
  *
  * \par Function Name:
- *      callCGR
+ *      callUniboCGR
  *
  * \brief  Entry point to call the CGR from DTN2, get the best routes to reach
  *         the destination for the bundle.
@@ -1374,9 +1388,8 @@ static int exclude_neighbors()
  * \retval   -8   NULL pointer during conversion to ION's contact
  *
  * \param[in]     time              The current time
- * \param[in]     *cgrvdb           The ION's CGR volatile database
  * \param[in]     *bundle           The DTN2's bundle that has to be forwarded
- * \param[out]    IonRoutes         The list of best routes found
+ * \param[out]    *matches          The list of best routes found
  *
  *
  * \par Revision History:
@@ -1385,8 +1398,9 @@ static int exclude_neighbors()
  *  -------- | --------------- | -----------------------------------------------
  *  05/07/20 | G. Gori		    |  Initial Implementation and documentation.
  *****************************************************************************/
-int callCGR(time_t time, CgrVdb *cgrvdb, Bundle *bundle, Lyst IonRoutes)
+int callUniboCGR(time_t time, Bundle *bundle, RouteEntryVec *matches)
 {
+
 	int result = -5;
 	List cgrRoutes = NULL;
 
@@ -1394,17 +1408,17 @@ int callCGR(time_t time, CgrVdb *cgrvdb, Bundle *bundle, Lyst IonRoutes)
 
 	debug_printf("Entry point interface.");
 
-	if (initialized && bundle != NULL &&  cgrvdb != NULL)
+	if (initialized && bundle != NULL)
 	{
 		// INPUT CONVERSION: check if the contact plan has been changed, in affermative case update it
-		result = update_contact_plan(ionwm, ionvdb);
+		result = update_contact_plan("", false);
 		if (result != -2)
 		{
 			result = create_ion_node_routing_object(terminusNode, ionwm, cgrvdb);
 			if (result == 0)
 			{
 				// INPUT CONVERSION: learn the bundle's characteristics and store them into the CGR's bundle struct
-				result = convert_bundle_from_ion_to_cgr(terminusNode->nodeNbr, time - reference_time, bundle, cgrBundle);
+				result = convert_bundle_from_dtn2_to_cgr(time - reference_time, bundle, cgrBundle);
 				if (result == 0)
 				{
 					// Check for embargoes...
@@ -1421,8 +1435,8 @@ int callCGR(time_t time, CgrVdb *cgrvdb, Bundle *bundle, Lyst IonRoutes)
 						{
 							// OUTPUT CONVERSION: convert the best routes into DTN2's CgrRoute and
 							// put them into ION's Lyst
-							result = convert_routes_from_cgr_to_ion(ionwm, ionvdb, terminusNode,
-									cgrBundle->evc, cgrRoutes, IonRoutes);
+							result = convert_routes_from_cgr_to_ion(terminusNode,
+									cgrBundle->evc, cgrRoutes, matches);
 							// ION's contacts MTVs are decreased by ipnfw
 
 							if (result == -1)
@@ -1544,7 +1558,7 @@ int computeApplicableBacklog(unsigned long long neighbor, int priority, unsigned
  *
  *
  * \par Date Written:
- *      19/02/20
+ *      14/07/20
  *
  * \return  void
  *
@@ -1555,18 +1569,17 @@ int computeApplicableBacklog(unsigned long long neighbor, int priority, unsigned
  *
  *  DD/MM/YY |  AUTHOR         |   DESCRIPTION
  *  -------- | --------------- | -----------------------------------------------
- *  19/02/20 | L. Persampieri  |  Initial Implementation and documentation.
+ *  14/07/20 | G. Gori		    |  Initial Implementation and documentation.
  *****************************************************************************/
 void destroy_contact_graph_routing(time_t time)
 {
-   //Giacomo: che funzione è questa free_list?
 	free_list(excludedNeighbors);
 	excludedNeighbors = NULL;
 	bundle_destroy(cgrBundle);
 	cgrBundle = NULL;
 	destroy_cgr(time - reference_time);
 	initialized = 0;
-	IonBundle = NULL;
+	//IonBundle = NULL;
 
 	reference_time = -1;
 
