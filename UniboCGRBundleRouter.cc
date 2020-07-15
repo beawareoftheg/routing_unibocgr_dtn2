@@ -33,7 +33,7 @@ UniboCGRBundleRouter::UniboCGRBundleRouter(const char* classname,
     // register the global shutdown function
     BundleDaemon::instance()->set_rtr_shutdown(
             unibo_cgr_router_shutdown, (void *) 0);
-   //Giacomo:: ownNode??
+   //Giacomo:: ownNodeok
    struct timeval tv;
    gettimeofday(&tv, NULL);
    EndpointID eid = BundleDaemon::instance()->local_eid_ipn();
@@ -617,7 +617,9 @@ UniboCGRBundleRouter::route_bundle(Bundle* bundle, bool skip_check_next_hop)
     LinkRef null_link("UniboCGRBundleRouter::route_bundle");
     //route_table_->get_matching(bundle->dest(), null_link, &matches);
     //GIACOMO: qua chiami callUniboCGR, i risultati su matches
-
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    callUniboCGR(tv.tv_sec, bundle, &matches);
     // sort the matching routes by priority, allowing subclasses to
     // override the way in which the sorting occurs
     sort_routes(bundle, &matches);

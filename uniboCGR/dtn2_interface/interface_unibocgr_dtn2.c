@@ -38,39 +38,8 @@
 #include "../cgr/cgr_phases.h"
 #include "../msr/msr_utils.h"
 
-#ifndef GET_MTV_FROM_SDR
-/**
- * \brief Set to 1 if you want to get the MTVs from ION's contact MTVs stored into SDR.
- *        Otherwise set to 0 (they will be computed as xmitRate*(toTime - fromTime)).
- *
- * \hideinitializer
- */
-#define GET_MTV_FROM_SDR 1
-#endif
 
-#ifndef DEBUG_ION_INTERFACE
-/**
- * \brief Boolean value used to enable some debug's print for this interface.
- * 
- * \details Set to 1 if you want to enable the debug's print, otherwise set to 0.
- *
- * \hideinitializer
- */
-#define DEBUG_ION_INTERFACE 0
-#endif
-
-#ifndef STORE_ROUTES_IN_ION_SELECTED_ROUTES
-/**
- * \brief Boolean value, set to 1 if you want to store the best routes in ION's selected routes.
- *        Set to 0 otherwise.
- *
- * \details Actually this is unneeded for ipnfw.
- *
- * \hideinitializer
- */
-#define STORE_ROUTES_IN_ION_SELECTED_ROUTES 0
-#endif
-
+//Giacomo: DA MODIFICARE
 #define NOMINAL_PRIMARY_BLKSIZE	29 // from ION 4.0.0: bpv7/library/libbpP.c
 
 /**
@@ -94,101 +63,7 @@ static Bundle *Dtn2Bundle = NULL;
  */
 static CgrBundle *cgrBundle = NULL;
 
-#if(DEBUG_ION_INTERFACE == 1)
-/******************************************************************************
- *
- * \par Function Name:
- * 		printDebugIonRoute
- *
- * \brief Print the "ION"'s route to standard output
- *
- *
- * \par Date Written:
- * 	    04/04/20
- *
- * \return void
- *
- * \param[in]   *route   The route that we want to print.
- *
- * \par Notes:
- *            1. This function print only the value of the route that
- *               will effectively used by ION.
- *            2. All the times are differential times from the reference time.
- *
- *
- * \par Revision History:
- *
- *  DD/MM/YY | AUTHOR          |  DESCRIPTION
- *  -------- | --------------- | -----------------------------------------------
- *  04/04/20 | L. Persampieri  |  Initial Implementation and documentation.
- *****************************************************************************/
-static void printDebugIonRoute(PsmPartition ionwm, CgrRoute *route)
-{
-	int stop = 0;
-	Sdr sdr = getIonsdr();
-	PsmAddress addr, addrContact;
-	SdrObject contactObj;
-	IonCXref *contact;
-	IonContact contactBuf;
-	time_t ref = reference_time;
-	if (route != NULL)
-	{
-		fprintf(stdout, "\nPRINT ION ROUTE\n%-15s %-15s %-15s %-15s %-15s %-15s %s\n", "ToNodeNbr",
-				"FromTime", "ToTime", "ETO", "PBAT", "MaxVolumeAvbl", "BundleECCC");
-		fprintf(stdout, "%-15llu %-15ld %-15ld %-15ld %-15ld %-15g %lu\n",
-				(unsigned long long) route->toNodeNbr, (long int) route->fromTime - ref,
-				(long int) route->toTime - ref, (long int) route->eto - ref,
-				(long int) route->pbat - ref, route->maxVolumeAvbl, (long unsigned int) route->bundleECCC);
-		fprintf(stdout, "%-15s %-15s %-15s %-15s %-15s %s\n", "Confidence", "Hops", "Overbooked (G)",
-				"Overbooked (U)", "Protected (G)", "Protected (U)");
-		fprintf(stdout, "%-15.2f %-15ld %-15d %-15d %-15d %d\n", route->arrivalConfidence,
-				(long int) sm_list_length(ionwm, route->hops), route->overbooked.gigs,
-				route->overbooked.units, route->committed.gigs, route->committed.units);
-		fprintf(stdout, "%-15s %-15s %-15s %-15s %-15s %-15s %-15s %-15s %s\n", "FromNode",
-				"ToNode", "FromTime", "ToTime", "XmitRate", "Confidence", "MTV[Bulk]",
-				"MTV[Normal]", "MTV[Expedited]");
-		for (addr = sm_list_first(ionwm, route->hops); addr != 0 && !stop;
-				addr = sm_list_next(ionwm, addr))
-		{
-			addrContact = sm_list_data(ionwm, addr);
-			stop = 1;
-			if (addrContact != 0)
-			{
-				contact = psp(ionwm, addrContact);
-				if (contact != NULL)
-				{
-					stop = 0;
-					contactObj = sdr_list_data(sdr, contact->contactElt);
-					sdr_read(sdr, (char*) &contactBuf, contactObj, sizeof(IonContact));
-					fprintf(stdout,
-							"%-15llu %-15llu %-15ld %-15ld %-15lu %-15.2f %-15g %-15g %g\n",
-							(unsigned long long) contact->fromNode,
-							(unsigned long long) contact->toNode,
-							(long int) contact->fromTime - ref, (long int) contact->toTime - ref,
-							(long unsigned int) contact->xmitRate, contact->confidence, contactBuf.mtv[0],
-							contactBuf.mtv[1], contactBuf.mtv[2]);
-				}
-				else
-				{
-					fprintf(stdout, "Contact: NULL.\n");
-				}
-
-			}
-			else
-			{
-				fprintf(stdout, "PsmAddress: 0.\n");
-			}
-		}
-
-		debug_fflush(stdout);
-
-	}
-
-	return;
-}
-#else
 #define printDebugIonRoute(ionwm, route) do {  } while(0)
-#endif
 
 #if (CGR_AVOID_LOOP > 0)
 /******************************************************************************
@@ -408,6 +283,7 @@ static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bund
 {
 	//Giacomo: qua il codice è c, forse è meglio passare campi semplici invece che Bundle che è definito in c++?
 	//Primo tentativo: faccio come se il codice fosse C++
+	//Da capire se le estensioni vanno contate
 	int result = -1;
 	time_t offset;
 #if (MSR == 1)
@@ -459,44 +335,48 @@ static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bund
             	SET_CRITICAL(CgrBundle);
             }
 				#endif
-			//Non ho trovato info sul backward propagation
+			/*Non ho trovato info sul backward propagation
 			if (!(IS_CRITICAL(CgrBundle)) && IonBundle->returnToSender)
 			{
 				SET_BACKWARD_PROPAGATION(CgrBundle);
-			}
-			if(!(Dtn2Bundle->do_not_fragment() & BDL_DOES_NOT_FRAGMENT))
+			}*/
+			if(!(Dtn2Bundle->do_not_fragment()))
 			{
 				SET_FRAGMENTABLE(CgrBundle);
 			}
-
-			//TODO search probe field in ION's bundle...
 			#ifdef ECOS_ENABLED
 			CgrBundle->ordinal = (unsigned int) Dtn2Bundle->ecos_ordinal();
 			#endif
-
-			//size computation ported by ION 4.0.0
-			CgrBundle->size = NOMINAL_PRIMARY_BLKSIZE + IonBundle->extensionsLength
-					+ Dtn2Bundle->durable_size();
-				//Giacomo: forse la lunghezza sta su gbofid? dovrai debuggare un po'
-				//durable_size() da la lunghezza del payload in size_t
-				//FERMO QUA
+			CgrBundle->size = NOMINAL_PRIMARY_BLKSIZE + Dtn2Bundle->durable_size();
 
 			CgrBundle->evc = computeBundleEVC(CgrBundle->size); // SABR 2.4.3
 
-			offset = IonBundle->id.creationTime.seconds + EPOCH_2000_SEC - reference_time;
-
+			offset = Dtn2Bundle->creation_ts().seconds_ + EPOCH_2000_SEC - reference_time;
+			//offset è la differenza tra la creazione del bundle e il momento di partenza del demone dtnd
 			CgrBundle->expiration_time = IonBundle->expirationTime
 					- IonBundle->id.creationTime.seconds + offset;
-			CgrBundle->sender_node = IonBundle->clDossier.senderNodeNbr;
-			CgrBundle->priority_level = IonBundle->priority;
+					
+			CgrBundle->expiration_time = Dtn2Bundle->expiration() + offset;
+					//Giacomo: trova src e sostituisci a dest
+			std::string ipnName2 = Dtn2Bundle->source()->str();
+			std::string s2 = ipnName2.substr(ipnName2.find(delimiter1) + 1, ipnName2.find(delimiter2) - 1);
+			std::stringstream converts;
+			long sendNode;
+			converts << s;
+			converts >> sendNode;
+			CgrBundle->sender_node = sendNode;
+			CgrBundle->priority_level = Dtn2Bundle->priority();
 
-			CgrBundle->dlvConfidence = IonBundle->dlvConfidence;
+			CgrBundle->dlvConfidence = 1;
 
 			// We don't need ID during CGR so we just print it into log file.
-			print_log_bundle_id((unsigned long long ) IonBundle->id.source.ssp.ipn.nodeNbr,
-					IonBundle->id.creationTime.seconds, IonBundle->id.creationTime.count,
-					IonBundle->totalAduLength, IonBundle->id.fragmentOffset);
-			writeLog("Payload length: %u.", IonBundle->payload.length);
+			//Giacomo: non sono riusdito ad ottenere totalAduLength
+			//Esso è la somma tra tutti i fragmentation offset e il payload dell'ultimo frammento
+			// praticamente la lunghezza totale di tutto il bundle intero
+			print_log_bundle_id((unsigned long long ) sendNode,
+					Dtn2Bundle->creation_ts().seconds_, Dtn2Bundle->creation_ts().seqno_,
+					IonBundle->totalAduLength, Dtn2Bundle->frag_offset);
+			writeLog("Payload length: %zu.", Dtn2Bundle->payload());
 
 			result = 0;
 		}
@@ -585,224 +465,7 @@ static int convert_scalar_from_cgr_to_ion(CgrScalar *cgr_scalar, Scalar *ion_sca
 	return result;
 }
 
-/******************************************************************************
- *
- * \par Function Name:
- *      convert_hops_list_from_cgr_to_ion
- *
- * \brief  Convert a list of contacts from this CGR's implementation to ION.
- * 
- * \details  This function is thinked to convert the hops list of a Route
- *           and only for this scope.
- *
- *
- * \par Date Written:
- *      19/02/20
- *
- * \return  int
- * 
- * \retval  ">= 0"  Number of contacts converted
- * \retval     -1   CGR's contact NULL
- * \retval     -2   Memory allocation error
- * \retval     -3   Contact not found in the ION's contacts graph
- *
- * \param[in]   ionwm      The partition of the ION's contacts graph
- * \param[in]   *ionvdb    The ion's volatile database
- * \param[in]   CgrHops    The list of contacts of this CGR's implementation
- * \param[out]  IonHops    The list of contact in ION's format.
- *
- * \warning ionvdb doesn't have to be NULL
- * \warning CgrHops doesn't have to be NULL
- * \warning IonHops doesn't have to be 0
- *
- * \par	Notes:
- *                1.    All the contacts will be searched in the ION's contacts graph, and
- *                      then the contact found will be added in the list.
- *                2.    The ION's list mantains the same order of the CGR's list.
- *                3.    To the ION's contact this function adds the citations to the
- *                      hop of the list where is the contact.
- *
- * \par Revision History:
- *
- *  DD/MM/YY |  AUTHOR         |   DESCRIPTION
- *  -------- | --------------- | -----------------------------------------------
- *  19/02/20 | L. Persampieri  |  Initial Implementation and documentation.
- *****************************************************************************/
-static int convert_hops_list_from_cgr_to_ion(PsmPartition ionwm, IonVdb *ionvdb, List CgrHops,
-		PsmAddress IonHops)
-{
-	ListElt *elt;
-	IonCXref IonContact, *IonTreeContact;
-	PsmAddress tree_node, citation, contactAddr;
-	int result = 0;
 
-	for (elt = CgrHops->first; elt != NULL && result >= 0; elt = elt->next)
-	{
-		if (convert_contact_from_cgr_to_ion((Contact*) elt->data, &IonContact) == 0)
-		{
-			tree_node = sm_rbt_search(ionwm, ionvdb->contactIndex, rfx_order_contacts, &IonContact,
-					0);
-			if (tree_node != 0)
-			{
-				contactAddr = sm_rbt_data(ionwm, tree_node);
-				IonTreeContact = (IonCXref*) psp(ionwm, contactAddr);
-				if (IonTreeContact != NULL)
-				{
-					citation = sm_list_insert_last(ionwm, IonHops, contactAddr);
-
-					if (citation == 0)
-					{
-						result = -2;
-					}
-					else
-					{
-						result++;
-
-						if (IonTreeContact->citations == 0)
-						{
-							IonTreeContact->citations = sm_list_create(ionwm);
-							if (IonTreeContact->citations == 0)
-							{
-								result = -2;
-							}
-						}
-
-						if (result != -2)
-						{
-							if (sm_list_insert_last(ionwm, IonTreeContact->citations, citation)
-									== 0)
-							{
-								result = -2;
-							}
-							else
-							{
-								result++;
-							}
-						}
-					}
-				}
-				else
-				{
-					result = -3;
-				}
-			}
-			else
-			{
-				result = -3;
-			}
-		}
-		else
-		{
-			result = -1;
-		}
-	}
-
-	return result;
-}
-
-#if (STORE_ROUTES_IN_ION_SELECTED_ROUTES)
-/******************************************************************************
- *
- * \par Function Name:
- *      search_route_in_ion_selected_routes
- *
- * \brief   Search a route in the selectedRoutes of the ION's routing object of the terminus node.
- *          The route must have an equal hops list.
- *
- *
- * \par Date Written:
- *      19/02/20
- *
- * \return int
- *
- * \retval   0  Route found
- * \retval  -1  Route not found
- *
- * \param[in]    ionwm        The partition of the ION's contacts graph
- * \param[in]    *route       The CGR's route that we want to search in ION
- * \param[in]    *rtgObj      The routing object where we search the route
- * \param[out]   **IonRoute   The route found (only if result == 0)
- *
- *
- * \par Revision History:
- *
- *  DD/MM/YY |  AUTHOR         |   DESCRIPTION
- *  -------- | --------------- | -----------------------------------------------
- *  19/02/20 | L. Persampieri  |  Initial Implementation and documentation.
- *****************************************************************************/
-static int search_route_in_ion_selected_routes(PsmPartition ionwm, Route *route,
-		CgrRtgObject *rtgObj, CgrRoute **IonRoute)
-{
-	int result = -1, found, stop;
-	PsmAddress selElt, hopEltSelected, addr;
-	ListElt *hopEltCgr;
-	CgrRoute *selectedRoute;
-	IonCXref *contactSelected;
-	Contact *contactCgr;
-
-	if (route != NULL && rtgObj != NULL)
-	{
-		found = 0;
-		for (selElt = sm_list_first(ionwm, rtgObj->selectedRoutes); selElt && !found; selElt =
-				sm_list_next(ionwm, selElt))
-		{
-			selectedRoute = psp(ionwm, sm_list_data(ionwm, selElt));
-			if (selectedRoute != NULL)
-			{
-				if (route->neighbor == selectedRoute->toNodeNbr)
-				{
-					if (route->hops->length == sm_list_length(ionwm, selectedRoute->hops))
-					{
-						hopEltSelected = sm_list_first(ionwm, selectedRoute->hops);
-						stop = 0;
-						for (hopEltCgr = route->hops->first; hopEltCgr != NULL && !stop; hopEltCgr =
-								hopEltCgr->next)
-						{
-							contactCgr = (Contact*) hopEltCgr->data;
-							addr = sm_list_data(ionwm, hopEltSelected);
-							if (addr != 0)
-							{
-								contactSelected = (IonCXref*) psp(ionwm, addr);
-
-								if (contactCgr != NULL && contactSelected != NULL)
-								{
-									if (contactCgr->fromNode != contactSelected->fromNode
-											|| contactCgr->toNode != contactSelected->toNode
-											|| ((contactCgr->fromTime + reference_time)
-													!= contactSelected->fromTime))
-									{
-										stop = 1;
-									}
-								}
-								else
-								{
-									stop = 1;
-								}
-
-								hopEltSelected = sm_list_next(ionwm, hopEltSelected);
-							}
-							else
-							{
-								stop = 1;
-							}
-						}
-
-						if (!stop)
-						{
-							found = 1;
-							*IonRoute = psp(ionwm, sm_list_data(ionwm, selElt));
-							result = 0;
-						}
-
-					}
-				}
-			}
-		}
-	}
-
-	return result;
-}
-#endif
 
 /******************************************************************************
  *
@@ -838,15 +501,10 @@ static int search_route_in_ion_selected_routes(PsmPartition ionwm, Route *route,
 static int convert_routes_from_cgr_to_dtn2(IonNode *terminusNode,
 		long unsigned int evc, List cgrRoutes, RouteEntryVec *matches)
 {
-	//Giacomo: il risultato del convert originale è mandato su un IonRoute che non è un puntatore
 	ListElt *elt;
 	PsmAddress addr, hops;
 	CgrRoute *IonRoute = NULL;
 	Route *current;
-#if (STORE_ROUTES_IN_ION_SELECTED_ROUTES)
-	CgrRtgObject *rtgObj = (CgrRtgObject*) psp(ionwm, terminusNode->routingObject);
-	PsmAddress ref;
-#endif
 
 	int result = 0;
 
@@ -855,42 +513,11 @@ static int convert_routes_from_cgr_to_dtn2(IonNode *terminusNode,
 		if (elt->data != NULL)
 		{
 			current = (Route*) elt->data;
-#if (STORE_ROUTES_IN_ION_SELECTED_ROUTES)
-			// TODO currently it is only a cost that doesn't introduce benefits...
-			// TODO consider to remove this search into ION's selectedRoutes...
-			if (search_route_in_ion_selected_routes(ionwm, current, rtgObj, &IonRoute) == 0)
-			{
-				//update values for the forwarding of the current bundle
-				IonRoute->arrivalTime = current->arrivalTime + reference_time;
-				IonRoute->maxVolumeAvbl = current->routeVolumeLimit;
-				IonRoute->bundleECCC = evc;
-				IonRoute->eto = current->eto + reference_time;
-				IonRoute->pbat = current->pbat + reference_time;
-				convert_scalar_from_cgr_to_ion(&(current->protected), &(IonRoute->committed));
-				convert_scalar_from_cgr_to_ion(&(current->overbooked), &(IonRoute->overbooked));
-
-				printDebugIonRoute(ionwm, IonRoute);
-				if (lyst_insert_last(IonRoutes, (void *) IonRoute) == NULL)
-				{
-					result = -2;
-				}
-			}
-			else
-			{
-#endif
 				addr = psm_zalloc(ionwm, sizeof(CgrRoute));
 				hops = sm_list_create(ionwm);
 
 				if (addr != 0 && hops != 0)
 				{
-#if (STORE_ROUTES_IN_ION_SELECTED_ROUTES)
-					// TODO currently it is only a cost that doesn't introduce benefits...
-					// TODO consider to remove this insertion into ION's selectedRoutes
-					ref = sm_list_insert_last(ionwm, rtgObj->selectedRoutes, addr);
-					IonRoute->referenceElt = ref;
-					if (ref != 0)
-					{
-#endif
 						IonRoute = (CgrRoute*) psp(ionwm, addr);
 						memset((char*) IonRoute, 0, sizeof(CgrRoute));
 						IonRoute->toNodeNbr = current->neighbor;
@@ -906,36 +533,21 @@ static int convert_routes_from_cgr_to_dtn2(IonNode *terminusNode,
 								&(IonRoute->committed));
 						convert_scalar_from_cgr_to_ion(&(current->overbooked),
 								&(IonRoute->overbooked));
-						if (convert_hops_list_from_cgr_to_ion(ionwm, ionvdb, current->hops, hops)
-								>= 0)
+						//Questo stava dentro l'if che convertiva i contatti da ION
+						if (lyst_insert_last(IonRoutes, (void*) IonRoute) == NULL)
 						{
-							IonRoute->hops = hops;
-							printDebugIonRoute(ionwm, IonRoute);
-							if (lyst_insert_last(IonRoutes, (void*) IonRoute) == NULL)
-							{
-								result = -2;
-							}
+							result = -2;
 						}
 						else
 						{
 							result = -2;
 							removeRoute(ionwm, addr);
 						}
-#if (STORE_ROUTES_IN_ION_SELECTED_ROUTES)
-					}
-					else
-					{
-						result = -2;
-					}
-#endif
 				}
 				else
 				{
 					result = -2;
 				}
-#if (STORE_ROUTES_IN_ION_SELECTED_ROUTES)
-			}
-#endif
 		}
 		else
 		{
