@@ -1,44 +1,3 @@
-/*
- *    Copyright 2005-2006 Intel Corporation
- * 
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- * 
- *        http://www.apache.org/licenses/LICENSE-2.0
- * 
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
- */
-
-/*
- *    Modifications made to this file by the patch file dtn2_mfs-33289-1.patch
- *    are Copyright 2015 United States Government as represented by NASA
- *       Marshall Space Flight Center. All Rights Reserved.
- *
- *    Released under the NASA Open Source Software Agreement version 1.3;
- *    You may obtain a copy of the Agreement at:
- * 
- *        http://ti.arc.nasa.gov/opensource/nosa/
- * 
- *    The subject software is provided "AS IS" WITHOUT ANY WARRANTY of any kind,
- *    either expressed, implied or statutory and this agreement does not,
- *    in any manner, constitute an endorsement by government agency of any
- *    results, designs or products resulting from use of the subject software.
- *    See the Agreement for the specific language governing permissions and
- *    limitations.
- */
-
-
-
-/*
-This header is a modification of UniboCGRBundleRouter.h made by Giacomo Gori
-in Summer 2020 under supervision of Carlo Caini
-*/
-
 #ifndef _UNIBO_CGR_BUNDLE_ROUTER_H_
 #define _UNIBO_CGR_BUNDLE_ROUTER_H_
 
@@ -46,25 +5,23 @@ in Summer 2020 under supervision of Carlo Caini
 
 #include "BundleRouter.h"
 #include "RouterInfo.h"
+#include "uniboCGR/interface_unibocgr_dtn2.h"
 #include "bundling/BundleInfoCache.h"
 #include "reg/Registration.h"
 #include "session/SessionTable.h"
-#include <string>
 
 namespace dtn {
 
 class BundleList;
 class RouteEntryVec;
-class RouteTable;
 
 /**
- * This is a class that is intended to be used for
- * interfacing with UniboCGR
+ * This is a class that implements UniboCGR's Bundle Routing
  */
 class UniboCGRBundleRouter : public BundleRouter {
 public:
     /**
-     * Constructor -- public since this class has to be instancieted
+     * Constructor -- public
      */
     UniboCGRBundleRouter(const char* classname, const std::string& name);
 
@@ -85,10 +42,6 @@ public:
     virtual void handle_bundle_received(BundleReceivedEvent* event);
     virtual void handle_bundle_transmitted(BundleTransmittedEvent* event);
     virtual void handle_bundle_cancelled(BundleSendCancelledEvent* event);
-    virtual void handle_route_add(RouteAddEvent* event);
-    virtual void handle_route_del(RouteDelEvent* event);
-    virtual void handle_contact_up(ContactUpEvent* event);
-    virtual void handle_contact_down(ContactDownEvent* event);
     virtual void handle_link_available(LinkAvailableEvent* event);
     virtual void handle_link_created(LinkCreatedEvent* event);
     virtual void handle_link_deleted(LinkDeletedEvent* event);
@@ -119,22 +72,7 @@ public:
      */
     void get_routing_state(oasys::StringBuffer* buf);
 
-    /**
-     * Get a tcl version of the routing state.
-     */
-    void tcl_dump_state(oasys::StringBuffer* buf);
 
-    /**
-     * Add a route entry to the routing table. 
-     * Set skip_changed_routes to true to skip the call to 
-     * handle_changed_routes if the initiating method is going to call it.
-     */
-    void add_route(RouteEntry *entry, bool skip_changed_routes=true);
-
-    /**
-     * Remove matrhing route entry(s) from the routing table. 
-     */
-    void del_route(const EndpointIDPattern& id);
 
     /**
      * Update forwarding state due to changed routes.
@@ -156,8 +94,7 @@ public:
     virtual bool should_fwd(const Bundle* bundle, RouteEntry* route);
     
     /**
-     * Call the UniboCGR and get next hops that match the given bundle and
-     * have not already been found in the bundle history. If a match
+     * Call the CGR to find matches. If a match
      * is found, call fwd_to_nexthop on it.
      * Set skip_check_next_hop to true to skip the call to 
      * check_next_hop().
@@ -165,7 +102,7 @@ public:
      * @param bundle		the bundle to forward
      *
      * Returns the number of links on which the bundle was queued
-     * (i.e. the number of matching route entries.
+     * i.e. the number of matching entries found bu the CGR.
      */
     virtual int route_bundle(Bundle* bundle, bool skip_check_next_hop=false);
 
@@ -224,7 +161,7 @@ public:
     BundleInfoCache reception_cache_;
 
     /// The routing table
-    RouteTable* route_table_;
+    //RouteTable* route_table_;
 
     /// Session state management table
     SessionTable sessions_;

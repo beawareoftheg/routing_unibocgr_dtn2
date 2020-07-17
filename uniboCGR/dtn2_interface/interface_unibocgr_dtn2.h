@@ -28,6 +28,8 @@
 #include "cgrr.h"
 #include "rgr.h" 
 
+#include <string>
+
 #ifdef QUEUE_DELAY
 #undef QUEUE_DELAY
 // Just to avoid macro redefinition error
@@ -35,9 +37,9 @@
 #endif
 
 //DTN2 is written in c++
-#ifndef __cplusplus
-#define __cplusplus
-#endif
+//#ifndef __cplusplus
+//#define __cplusplus
+//#endif
 
 #include "../msr/msr.h"
 #include <sys/time.h>
@@ -48,7 +50,7 @@ extern "C"
 #endif
 
 extern int callUniboCGR(time_t time, Bundle *bundle,
-		 Lyst IonRoutes);
+		 std::string *res);
 extern void destroy_contact_graph_routing(time_t time);
 extern int initialize_contact_graph_routing(unsigned long long ownNode, time_t time);
 

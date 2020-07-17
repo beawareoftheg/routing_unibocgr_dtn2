@@ -41,6 +41,7 @@
 
 //Giacomo: DA MODIFICARE
 #define NOMINAL_PRIMARY_BLKSIZE	29 // from ION 4.0.0: bpv7/library/libbpP.c
+#define MSR 0
 
 /**
  * \brief This time is used by the CGR as time 0.
@@ -65,79 +66,6 @@ static CgrBundle *cgrBundle = NULL;
 
 #define printDebugIonRoute(ionwm, route) do {  } while(0)
 
-#if (CGR_AVOID_LOOP > 0)
-/******************************************************************************
- *
- * \par Function Name:
- *      get_rgr_ext_block
- *
- * \brief  Get the GeoRoute stored into RGR Extension Block
- *
- *
- * \par Date Written:
- *      23/04/20
- *
- * \return int
- *
- * \retval  0  Success case: GeoRoute found
- * \retval -1  GeoRoute not found
- * \retval -2  System error
- *
- * \param[in]   *bundle    The bundle that contains the RGR Extension Block
- * \param[out]  *resultBlk The GeoRoute extracted from the RGR Extension Block, only in success case.
- *                         The resultBLk must be allocated by the caller.
- *
- * \warning bundle    doesn't have to be NULL
- * \warning resultBlk doesn't have to be NULL
- *
- * \par Revision History:
- *
- *  DD/MM/YY |  AUTHOR         |   DESCRIPTION
- *  -------- | --------------- | -----------------------------------------------
- *  23/04/20 | L. Persampieri  |  Initial Implementation and documentation.
- *****************************************************************************/
-static int get_rgr_ext_block(Bundle *bundle, GeoRoute *resultBlk)
-{
-	Sdr sdr = getIonsdr();
-	int result = 0;
-	Object extBlockElt;
-	Address extBlkAddr;
-
-	OBJ_POINTER(ExtensionBlock, blk);
-
-	/* Step 1 - Check for the presence of RGR extension*/
-
-	if (!(extBlockElt = findExtensionBlock(bundle, RGRBlk, 0, 0, 0)))
-	{
-		result = -1;
-	}
-	else
-	{
-		/* Step 2 - Get deserialized version of RGR extension block*/
-
-		extBlkAddr = sdr_list_data(sdr, extBlockElt);
-
-		GET_OBJ_POINTER(sdr, ExtensionBlock, blk, extBlkAddr);
-
-		result = rgr_read(blk, resultBlk);
-
-		if(result == -1)
-		{
-			result = -2; // system error
-		}
-		else if(result < -1)
-		{
-			result = -1; // geo route not found
-		}
-		else
-		{
-			result = 0; // geo route found
-		}
-	}
-
-	return result;
-}
-#endif
 
 #if (MSR == 1)
 /******************************************************************************
@@ -283,7 +211,7 @@ static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bund
 {
 	//Giacomo: qua il codice è c, forse è meglio passare campi semplici invece che Bundle che è definito in c++?
 	//Primo tentativo: faccio come se il codice fosse C++
-	//Da capire se le estensioni vanno contate
+	//TODO Consider to take count of extensions
 	int result = -1;
 	time_t offset;
 #if (MSR == 1)
@@ -355,7 +283,7 @@ static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bund
 			//offset è la differenza tra la creazione del bundle e il momento di partenza del demone dtnd
 			CgrBundle->expiration_time = IonBundle->expirationTime
 					- IonBundle->id.creationTime.seconds + offset;
-					
+
 			CgrBundle->expiration_time = Dtn2Bundle->expiration() + offset;
 					//Giacomo: trova src e sostituisci a dest
 			std::string ipnName2 = Dtn2Bundle->source()->str();
@@ -373,9 +301,9 @@ static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bund
 			//Giacomo: non sono riusdito ad ottenere totalAduLength
 			//Esso è la somma tra tutti i fragmentation offset e il payload dell'ultimo frammento
 			// praticamente la lunghezza totale di tutto il bundle intero
-			print_log_bundle_id((unsigned long long ) sendNode,
+			print_log_bundle_id    ((unsigned long long ) sendNode,
 					Dtn2Bundle->creation_ts().seconds_, Dtn2Bundle->creation_ts().seqno_,
-					IonBundle->totalAduLength, Dtn2Bundle->frag_offset);
+					/*IonBundle->totalAduLength,*/ Dtn2Bundle->frag_offset);
 			writeLog("Payload length: %zu.", Dtn2Bundle->payload());
 
 			result = 0;
@@ -470,42 +398,38 @@ static int convert_scalar_from_cgr_to_ion(CgrScalar *cgr_scalar, Scalar *ion_sca
 /******************************************************************************
  *
  * \par Function Name:
- *      convert_routes_from_cgr_to_ion
+ *      convert_routes_from_cgr_to_dtn2
  *
- * \brief Convert a list of routes from CGR's format to ION's format
+ * \brief Convert a list of routes from CGR's format to DTN2's format
  *
  *
  * \par Date Written: 
- *      19/02/20
+ *      16/07/20
  *
  * \return int 
  *
  * \retval   0  All routes converted
  * \retval  -1  CGR's contact points to NULL
- * \retval  -2  Memory allocation error
  *
- * \param[in]     ionwm           The partition of the ION's contacts graph
- * \param[in]     *ionvdb         The ION's volatile database
- * \param[in]     *terminusNode   The node for which the routes have been computed
  * \param[in]     evc             Bundle's estimated volume consumption
  * \param[in]     cgrRoutes       The list of routes in CGR's format
- * \param[out]    *matches        The list converted (only if return value is 0)
+ * \param[out]    *res        	 All the next hops that CGR found, separated by a single space
  *
  *
  * \par Revision History:
  *
  *  DD/MM/YY |  AUTHOR         |   DESCRIPTION
  *  -------- | --------------- | -----------------------------------------------
- *  19/02/20 | L. Persampieri  |  Initial Implementation and documentation.
+ *  16/07/20 | G. Gori         |  Initial Implementation and documentation.
  *****************************************************************************/
-static int convert_routes_from_cgr_to_dtn2(IonNode *terminusNode,
-		long unsigned int evc, List cgrRoutes, RouteEntryVec *matches)
+static int convert_routes_from_cgr_to_dtn2(long unsigned int evc, List cgrRoutes, std::string *res)
 {
 	ListElt *elt;
 	PsmAddress addr, hops;
 	CgrRoute *IonRoute = NULL;
 	Route *current;
-
+	RouteEntryVec::const_iterator iter;
+	size_t count = 0;
 	int result = 0;
 
 	for (elt = cgrRoutes->first; elt != NULL && result >= 0; elt = elt->next)
@@ -513,41 +437,27 @@ static int convert_routes_from_cgr_to_dtn2(IonNode *terminusNode,
 		if (elt->data != NULL)
 		{
 			current = (Route*) elt->data;
-				addr = psm_zalloc(ionwm, sizeof(CgrRoute));
-				hops = sm_list_create(ionwm);
-
-				if (addr != 0 && hops != 0)
-				{
-						IonRoute = (CgrRoute*) psp(ionwm, addr);
-						memset((char*) IonRoute, 0, sizeof(CgrRoute));
-						IonRoute->toNodeNbr = current->neighbor;
-						IonRoute->fromTime = current->fromTime + reference_time;
-						IonRoute->toTime = current->toTime + reference_time;
-						IonRoute->arrivalConfidence = current->arrivalConfidence;
-						IonRoute->arrivalTime = current->arrivalTime + reference_time;
-						IonRoute->maxVolumeAvbl = current->routeVolumeLimit;
-						IonRoute->bundleECCC = evc;
-						IonRoute->eto = current->eto + reference_time;
-						IonRoute->pbat = current->pbat + reference_time;
-						convert_scalar_from_cgr_to_ion(&(current->protected),
-								&(IonRoute->committed));
-						convert_scalar_from_cgr_to_ion(&(current->overbooked),
-								&(IonRoute->overbooked));
-						//Questo stava dentro l'if che convertiva i contatti da ION
-						if (lyst_insert_last(IonRoutes, (void*) IonRoute) == NULL)
-						{
-							result = -2;
-						}
-						else
-						{
-							result = -2;
-							removeRoute(ionwm, addr);
-						}
-				}
-				else
-				{
-					result = -2;
-				}
+			std::string toNode = "ipn:";
+			std::stringstream streamNode;
+			streamNode << toNode << current->neighbor;
+			//Giacomo: con ste stringhe è una bega
+			res += streamNode.str();
+			res += " ";
+			/*
+			IonRoute->toNodeNbr = current->neighbor;
+			IonRoute->fromTime = current->fromTime + reference_time;
+			IonRoute->toTime = current->toTime + reference_time;
+			IonRoute->arrivalConfidence = current->arrivalConfidence;
+			IonRoute->arrivalTime = current->arrivalTime + reference_time;
+			IonRoute->maxVolumeAvbl = current->routeVolumeLimit;
+			IonRoute->bundleECCC = evc;
+			IonRoute->eto = current->eto + reference_time;
+			IonRoute->pbat = current->pbat + reference_time;
+			convert_scalar_from_cgr_to_ion(&(current->protected),
+					&(IonRoute->committed));
+			convert_scalar_from_cgr_to_ion(&(current->overbooked),
+					&(IonRoute->overbooked));
+			*/
 		}
 		else
 		{
@@ -1010,7 +920,7 @@ static int exclude_neighbors()
  *  -------- | --------------- | -----------------------------------------------
  *  05/07/20 | G. Gori		    |  Initial Implementation and documentation.
  *****************************************************************************/
-int callUniboCGR(time_t time, Bundle *bundle, RouteEntryVec *matches)
+int callUniboCGR(time_t time, Bundle *bundle, string *res)
 {
 
 	int result = -5;
@@ -1026,49 +936,34 @@ int callUniboCGR(time_t time, Bundle *bundle, RouteEntryVec *matches)
 		result = update_contact_plan("", false);
 		if (result != -2)
 		{
-			result = create_ion_node_routing_object(terminusNode, ionwm, cgrvdb);
+			// INPUT CONVERSION: learn the bundle's characteristics and store them into the CGR's bundle struct
+			result = convert_bundle_from_dtn2_to_cgr(time - reference_time, bundle, cgrBundle);
 			if (result == 0)
 			{
-				// INPUT CONVERSION: learn the bundle's characteristics and store them into the CGR's bundle struct
-				result = convert_bundle_from_dtn2_to_cgr(time - reference_time, bundle, cgrBundle);
-				if (result == 0)
+				debug_printf("Go to CGR.");
+				// Call Unibo-CGR
+				result = getBestRoutes(time - reference_time, cgrBundle, excludedNeighbors,
+						&cgrRoutes);
+
+				if (result > 0 && cgrRoutes != NULL)
 				{
-					// Check for embargoes...
-					result = exclude_neighbors(ionwm, terminusNode);
-					if (result >= 0)
+					// OUTPUT CONVERSION: convert the best routes into DTN2's CgrRoute and
+					// put them into ION's Lyst
+					result = convert_routes_from_cgr_to_dtn2(
+							cgrBundle->evc, cgrRoutes, res);
+					// ION's contacts MTVs are decreased by ipnfw
+
+					if (result == -1)
 					{
-						IonBundle = bundle;
-						debug_printf("Go to CGR.");
-						// Call Unibo-CGR
-						result = getBestRoutes(time - reference_time, cgrBundle, excludedNeighbors,
-								&cgrRoutes);
-
-						if (result > 0 && cgrRoutes != NULL)
-						{
-							// OUTPUT CONVERSION: convert the best routes into DTN2's CgrRoute and
-							// put them into ION's Lyst
-							result = convert_routes_from_cgr_to_ion(terminusNode,
-									cgrBundle->evc, cgrRoutes, matches);
-							// ION's contacts MTVs are decreased by ipnfw
-
-							if (result == -1)
-							{
-								result = -8;
-							}
-						}
+						result = -8;
 					}
 				}
-				else
-				{
-					result = -7;
-				}
-
-				reset_bundle(cgrBundle);
 			}
 			else
 			{
-				result = -6;
+				result = -7;
 			}
+			reset_bundle(cgrBundle);
 		}
 	}
 

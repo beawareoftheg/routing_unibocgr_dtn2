@@ -1,53 +1,10 @@
-/*
- *    Copyright 2005-2006 Intel Corporation
- * 
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- * 
- *        http://www.apache.org/licenses/LICENSE-2.0
- * 
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
- */
-
-/*
- *    Modifications made to this file by the patch file dtn2_mfs-33289-1.patch
- *    are Copyright 2015 United States Government as represented by NASA
- *       Marshall Space Flight Center. All Rights Reserved.
- *
- *    Released under the NASA Open Source Software Agreement version 1.3;
- *    You may obtain a copy of the Agreement at:
- * 
- *        http://ti.arc.nasa.gov/opensource/nosa/
- * 
- *    The subject software is provided "AS IS" WITHOUT ANY WARRANTY of any kind,
- *    either expressed, implied or statutory and this agreement does not,
- *    in any manner, constitute an endorsement by government agency of any
- *    results, designs or products resulting from use of the subject software.
- *    See the Agreement for the specific language governing permissions and
- *    limitations.
- */
-
-
-/*
-*     UniboCGRBundleRouter.cc
-*
-*  This is a modification of UniboCGRBundleRouter made by Giacomo Gori
-*  on Summer 2020 with Carlo Caini as supervisor.
-*  It's purpose is to make possible for DTN2 to work with interface_unibocgr_dtn2
-*  to use UniboCGR as routing mechanism
-*/
-
 #ifdef HAVE_CONFIG_H
 #  include <dtn-config.h>
 #endif
 
 #include "UniboCGRBundleRouter.h"
 #include "RouteTable.h"
+#include "uniboCGR/interface_unibocgr_dtn2.h"
 #include "bundling/BundleActions.h"
 #include "bundling/BundleDaemon.h"
 #include "bundling/TempBundle.h"
@@ -57,7 +14,6 @@
 #include "reg/Registration.h"
 #include "session/Session.h"
 
-//Interface for UniboCGR
 #include "uniboCGR/interface_unibocgr_dtn2.h"
 
 namespace dtn {
@@ -74,12 +30,10 @@ UniboCGRBundleRouter::UniboCGRBundleRouter(const char* classname,
       reception_cache_(std::string(logpath()) + "/reception_cache",
                        1024) // XXX/demmer configurable??
 {
-    route_table_ = new RouteTable(name);
-
     // register the global shutdown function
     BundleDaemon::instance()->set_rtr_shutdown(
-            table_based_router_shutdown, (void *) 0);
-   //Giacomo:: getting necessary info & call initialize
+            unibo_cgr_router_shutdown, (void *) 0);
+   //Giacomo:: ownNodeok
    struct timeval tv;
    gettimeofday(&tv, NULL);
    EndpointID eid = BundleDaemon::instance()->local_eid_ipn();
@@ -97,61 +51,17 @@ UniboCGRBundleRouter::UniboCGRBundleRouter(const char* classname,
 //----------------------------------------------------------------------
 UniboCGRBundleRouter::~UniboCGRBundleRouter()
 {
-    if(route_table_ != NULL) {
-        delete route_table_;
-        route_table_ = NULL;
-    } 
-    //Giacomo: dovrei chiamare lo shutdown qua? O anche qua?
+    //Giacomo: CALL SHUTDOWN FROM INTERFACE
 }
 void UniboCGRBundleRouter::shutdown() {
-    if(route_table_ != NULL) {
-        delete route_table_;
-        route_table_ = NULL;
-    }
-    //Giacomo: call shutdown
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    destroy_contact_graph_routing();
-}
-
-//----------------------------------------------------------------------
-void
-UniboCGRBundleRouter::add_route(RouteEntry *entry, bool skip_changed_routes)
-{
-    route_table_->add_entry(entry);
-    if (!skip_changed_routes) {
-        handle_changed_routes();
-    }
-}
-
-//----------------------------------------------------------------------
-void
-UniboCGRBundleRouter::del_route(const EndpointIDPattern& dest)
-{
-    route_table_->del_entries(dest);
-
-    // clear the reception cache when the routes change since we might
-    // want to send a bundle back where it came from
-    reception_cache_.evict_all();
-    
-    // XXX/demmer this should really call handle_changed_routes...
-}
-
-//----------------------------------------------------------------------
-void
-UniboCGRBundleRouter::handle_changed_routes()
-{
-    // clear the reception cache when the routes change since we might
-    // want to send a bundle back where it came from
-    reception_cache_.evict_all();
-    reroute_all_bundles();
-    reroute_all_sessions();
+    //Giacomo: CALL SHUTDOWN FROM INTERFACE
 }
 
 //----------------------------------------------------------------------
 void
 UniboCGRBundleRouter::handle_event(BundleEvent* event)
 {
+   //Giacomo: che tipo di funzione è questa dispatch event?
     dispatch_event(event);
 }
 
@@ -457,50 +367,6 @@ UniboCGRBundleRouter::handle_bundle_cancelled(BundleSendCancelledEvent* event)
 }
 
 //----------------------------------------------------------------------
-void
-UniboCGRBundleRouter::handle_route_add(RouteAddEvent* event)
-{
-    add_route(event->entry_);
-}
-
-//----------------------------------------------------------------------
-void
-UniboCGRBundleRouter::handle_route_del(RouteDelEvent* event)
-{
-    del_route(event->dest_);
-}
-
-//----------------------------------------------------------------------
-void
-UniboCGRBundleRouter::add_nexthop_route(const LinkRef& link, bool skip_changed_routes)
-{
-    // If we're configured to do so, create a route entry for the eid
-    // specified by the link when it connected, using the
-    // scheme-specific code to transform the URI to wildcard
-    // the service part
-    EndpointID eid = link->remote_eid();
-    if (config_.add_nexthop_routes_ && eid != EndpointID::NULL_EID())
-    { 
-        EndpointIDPattern eid_pattern(link->remote_eid());
-
-        // attempt to build a route pattern from link's remote_eid
-        if (!eid_pattern.append_service_wildcard())
-            // else assign remote_eid as-is
-            eid_pattern.assign(link->remote_eid());
-
-        // XXX/demmer this shouldn't call get_matching but instead
-        // there should be a RouteTable::lookup or contains() method
-        // to find the entry
-        RouteEntryVec ignored;
-        if (route_table_->get_matching(eid_pattern, link, &ignored) == 0) {
-            RouteEntry *entry = new RouteEntry(eid_pattern, link);
-            entry->set_action(ForwardingInfo::FORWARD_ACTION);
-            add_route(entry, skip_changed_routes);
-        }
-    }
-}
-
-//----------------------------------------------------------------------
 bool
 UniboCGRBundleRouter::should_fwd(const Bundle* bundle, RouteEntry* route)
 {
@@ -526,67 +392,6 @@ UniboCGRBundleRouter::should_fwd(const Bundle* bundle, RouteEntry* route)
     return BundleRouter::should_fwd(bundle, route->link(), route->action());
 }
 
-//----------------------------------------------------------------------
-void
-UniboCGRBundleRouter::handle_contact_up(ContactUpEvent* event)
-{
-    LinkRef link = event->contact_->link();
-    ASSERT(link != NULL);
-    ASSERT(!link->isdeleted());
-
-    if (! link->isopen()) {
-        log_err("contact up(*%p): event delivered but link not open",
-                link.object());
-    }
-
-    add_nexthop_route(link);
-    check_next_hop(link);
-
-    // check if there's a pending reroute timer on the link, and if
-    // so, cancel it.
-    // 
-    // note that there's a possibility that a link just bounces
-    // between up and down states but can't ever really send a bundle
-    // (or part of one), which we don't handle here since we can't
-    // distinguish that case from one in which the CL is actually
-    // sending data, just taking a long time to do so.
-
-    RerouteTimerMap::iterator iter = reroute_timers_.find(link->name_str());
-    if (iter != reroute_timers_.end()) {
-        log_debug("link %s reopened, cancelling reroute timer", link->name());
-        RerouteTimer* t = iter->second;
-        reroute_timers_.erase(iter);
-        t->cancel();
-    }
-}
-
-//----------------------------------------------------------------------
-void
-UniboCGRBundleRouter::handle_contact_down(ContactDownEvent* event)
-{
-    LinkRef link = event->contact_->link();
-    ASSERT(link != NULL);
-    ASSERT(!link->isdeleted());
-
-    // if there are any bundles queued on the link when it goes down,
-    // schedule a timer to cancel those transmissions and reroute the
-    // bundles in case the link takes too long to come back up
-
-    size_t num_queued = link->queue()->size();
-    if (num_queued != 0) {
-        RerouteTimerMap::iterator iter = reroute_timers_.find(link->name_str());
-        if (iter == reroute_timers_.end()) {
-            log_debug("link %s went down with %zu bundles queued, "
-                      "scheduling reroute timer in %u seconds",
-                      link->name(), num_queued,
-                      link->params().potential_downtime_);
-            RerouteTimer* t = new RerouteTimer(this, link);
-            t->schedule_in(link->params().potential_downtime_ * 1000);
-            
-            reroute_timers_[link->name_str()] = t;
-        }
-    }
-}
 
 //----------------------------------------------------------------------
 void
@@ -634,6 +439,17 @@ UniboCGRBundleRouter::reroute_bundles(const LinkRef& link)
 
 //----------------------------------------------------------------------
 void
+UniboCGRBundleRouter::handle_changed_routes()
+{
+    // clear the reception cache when the routes change since we might
+    // want to send a bundle back where it came from
+    reception_cache_.evict_all();
+    reroute_all_bundles();
+    reroute_all_sessions();
+}
+
+//----------------------------------------------------------------------
+void
 UniboCGRBundleRouter::handle_link_available(LinkAvailableEvent* event)
 {
     LinkRef link = event->link_;
@@ -662,9 +478,6 @@ UniboCGRBundleRouter::handle_link_created(LinkCreatedEvent* event)
     ASSERT(!link->isdeleted());
 
     link->set_router_info(new DeferredList(logpath(), link));
-                          
-    // true=skip changed routes because we are about to call it
-    add_nexthop_route(link, true); 
     handle_changed_routes();
 }
 
@@ -674,8 +487,6 @@ UniboCGRBundleRouter::handle_link_deleted(LinkDeletedEvent* event)
 {
     LinkRef link = event->link_;
     ASSERT(link != NULL);
-
-    route_table_->del_entries_for_nexthop(link);
 
     RerouteTimerMap::iterator iter = reroute_timers_.find(link->name_str());
     if (iter != reroute_timers_.end()) {
@@ -720,9 +531,6 @@ UniboCGRBundleRouter::handle_custody_timeout(CustodyTimeoutEvent* event)
 void
 UniboCGRBundleRouter::get_routing_state(oasys::StringBuffer* buf)
 {
-    buf->appendf("Route table for %s router:\n\n", name_.c_str());
-    route_table_->dump(buf);
-
     if (!sessions_.empty())
     {
         buf->appendf("Session table (%zu sessions):\n", sessions_.size());
@@ -744,25 +552,6 @@ UniboCGRBundleRouter::get_routing_state(oasys::StringBuffer* buf)
     }
 }
 
-//----------------------------------------------------------------------
-void
-UniboCGRBundleRouter::tcl_dump_state(oasys::StringBuffer* buf)
-{
-    oasys::ScopeLock l(route_table_->lock(),
-                       "UniboCGRBundleRouter::tcl_dump_state");
-
-    RouteEntryVec::const_iterator iter;
-    for (iter = route_table_->route_table()->begin();
-         iter != route_table_->route_table()->end(); ++iter)
-    {
-        const RouteEntry* e = *iter;
-        buf->appendf(" {%s %s source_eid %s priority %d} ",
-                     e->dest_pattern().c_str(),
-                     e->next_hop_str().c_str(),
-                     e->source_pattern().c_str(),
-                     e->priority());
-    }
-}
 
 //----------------------------------------------------------------------
 bool
@@ -826,16 +615,11 @@ UniboCGRBundleRouter::route_bundle(Bundle* bundle, bool skip_check_next_hop)
 
     
     LinkRef null_link("UniboCGRBundleRouter::route_bundle");
-
-    //Giacomo: chiamo UniboCGR e prendo il risultato
+    //route_table_->get_matching(bundle->dest(), null_link, &matches);
+    //GIACOMO: qua chiami callUniboCGR, i risultati su matches
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    string res = "";
-    callUniboCGR(tv.tv_sec, bundle, &res);
-    log_debug("unibocgr return %s", res);
-   //Sosistuisco al posto di bundle->dest() ci devo mettere res
-    route_table_->get_matching(bundle->dest(), null_link, &matches);
-
+    callUniboCGR(tv.tv_sec, bundle, &matches);
     // sort the matching routes by priority, allowing subclasses to
     // override the way in which the sorting occurs
     sort_routes(bundle, &matches);
@@ -1413,7 +1197,8 @@ UniboCGRBundleRouter::find_session_upstream(Session* session)
     RouteEntryVec::iterator iter;
     
     EndpointID subscribe_eid("dtn-session:" + session->eid().str());
-    route_table_->get_matching(subscribe_eid, &matches);
+    //route_table_->get_matching(subscribe_eid, &matches);
+    //GIACOMO: qua devi chiamare il cgr per riempire correttamente la struttura matches
 
     // XXX/demmer do something about this...
     // sort_routes(bundle, &matches);
@@ -1464,7 +1249,8 @@ UniboCGRBundleRouter::add_subscriber(Session*          session,
     
     RouteEntry *entry = new RouteEntry(session->eid(), peer);
     entry->set_action(ForwardingInfo::COPY_ACTION);
-    route_table_->add_entry(entry);
+    //route_table_->add_entry(entry);
+   //GIACOMO: qua devi capire perchè aggiunge una entry alla table
 
     log_debug("routing %zu session bundles", session->bundles()->size());
     oasys::ScopeLock l(session->bundles()->lock(),

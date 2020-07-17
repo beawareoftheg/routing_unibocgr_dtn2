@@ -4,6 +4,22 @@
       "__string": "cpp",
       "string": "cpp",
       "string_view": "cpp",
-      "locale": "cpp"
+      "locale": "cpp",
+      "__bit_reference": "cpp",
+      "__hash_table": "cpp",
+      "__split_buffer": "cpp",
+      "__tree": "cpp",
+      "array": "cpp",
+      "initializer_list": "cpp",
+      "iterator": "cpp",
+      "map": "cpp",
+      "set": "cpp",
+      "unordered_map": "cpp",
+      "vector": "cpp",
+      "__functional_03": "cpp",
+      "functional": "cpp",
+      "istream": "cpp",
+      "system_error": "cpp",
+      "iosfwd": "cpp"
    }
 }
