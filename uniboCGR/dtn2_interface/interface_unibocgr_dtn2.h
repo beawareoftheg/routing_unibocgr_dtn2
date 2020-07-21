@@ -28,8 +28,6 @@
 #include "cgrr.h"
 #include "rgr.h" 
 
-#include <string>
-
 #ifdef QUEUE_DELAY
 #undef QUEUE_DELAY
 // Just to avoid macro redefinition error

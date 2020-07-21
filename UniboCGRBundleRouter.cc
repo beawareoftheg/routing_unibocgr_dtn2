@@ -806,6 +806,28 @@ UniboCGRBundleRouter::fwd_to_nexthop(Bundle* bundle, RouteEntry* route)
 }
 
 //----------------------------------------------------------------------
+UniboCGRBundleRouter::RouteEntry*
+UniboCGRBundleRouter::getLinkForNode(unsigned long long neighbor)
+{
+    //Giacomo: dal neighbor forma il nome completo del nodo (ipn:neighbor.0)
+    //poi consulta la routing table e ottieni in matches il nexthop link
+    RouteEntryVec matches;
+    std::stringstream convert;
+    std::string eids;
+    convert << "ipn:";
+    convert << neighbor;
+    convert << ".0";
+    convert >> eids;
+    EndpointID* ied = new EndpointID(eids);
+	route_table_->get_matching(*ied,null_link,&matches);
+    LinkRef null_link("UniboCGRBundleRouter::route_bundle");
+    RouteEntryVec matches;
+    RouteEntryVec::iterator iter;
+    route_table_->get_matching(eid, null_link, &matches); 
+    return matches.begin();
+}
+
+//----------------------------------------------------------------------
 int
 UniboCGRBundleRouter::route_bundle(Bundle* bundle, bool skip_check_next_hop)
 {
@@ -830,10 +852,13 @@ UniboCGRBundleRouter::route_bundle(Bundle* bundle, bool skip_check_next_hop)
     //Giacomo: chiamo UniboCGR e prendo il risultato
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    string res = "";
+    std::string res = "";
+    //Devo aggiungere ad callUniboCGR un parametro: le code
+    //opure ancora meglio: aggiungere una funzione a questa classe
+    //che dato un neighbor e priorità (forse facoltativa?) restituisca le code per quel neighbor
     callUniboCGR(tv.tv_sec, bundle, &res);
     log_debug("unibocgr return %s", res);
-   //Sosistuisco al posto di bundle->dest() ci devo mettere res
+   //Da sostiturie al posto di bundle->dest() ci devo mettere res
     route_table_->get_matching(bundle->dest(), null_link, &matches);
 
     // sort the matching routes by priority, allowing subclasses to

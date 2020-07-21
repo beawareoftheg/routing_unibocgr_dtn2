@@ -378,7 +378,7 @@ static int convert_scalar_from_ion_to_cgr(Scalar *ion_scalar, CgrScalar *cgr_sca
  *  DD/MM/YY |  AUTHOR         |   DESCRIPTION
  *  -------- | --------------- | -----------------------------------------------
  *  19/02/20 | L. Persampieri  |  Initial Implementation and documentation.
- *****************************************************************************/
+ ****************************************************************************
 static int convert_scalar_from_cgr_to_ion(CgrScalar *cgr_scalar, Scalar *ion_scalar)
 {
 	int result = -1;
@@ -391,7 +391,7 @@ static int convert_scalar_from_cgr_to_ion(CgrScalar *cgr_scalar, Scalar *ion_sca
 	}
 
 	return result;
-}
+}*/
 
 
 
@@ -990,7 +990,7 @@ int callUniboCGR(time_t time, Bundle *bundle, string *res)
  *
  *
  * \par Date Written:
- *      19/02/20
+ *      20/07/20
  *
  * \return int
  *
@@ -1013,12 +1013,72 @@ int callUniboCGR(time_t time, Bundle *bundle, string *res)
  *
  *  DD/MM/YY |  AUTHOR         |   DESCRIPTION
  *  -------- | --------------- | -----------------------------------------------
- *  19/02/20 | L. Persampieri  |  Initial Implementation and documentation.
+ *  20/07/20 | G. Gori         |  Initial Implementation and documentation.
  *****************************************************************************/
 int computeApplicableBacklog(unsigned long long neighbor, int priority, unsigned int ordinal, CgrScalar *CgrApplicableBacklog,
 		CgrScalar *CgrTotalBacklog)
 {
 	int result = -1;
+	long int byteTot, byteApp, byteCount;
+	Bundle * bundle;
+
+	if (CgrApplicableBacklog != NULL && CgrTotalBacklog != NULL)
+	{
+		//get da implementare su UniboCGRBundleRouter
+		RouteEntry* route = UniboCGRBundleRouter::getLinkForNode(neighbor);
+		const LinkRef& link = route->link();
+		//Deferred
+		DeferredList* deferred = UniboCGRBundleRouter::deferred_list(link);
+		oasys::ScopeLock l7(deferred->list()->lock(), 
+                       "interface_unibocgr_dtn2::computeApplicableBacklog");
+		BundleList::iterator iter = deferred->list()->begin();
+		while(iter != deferred->list()->end())
+		{
+			bundle = *iter;
+			//Capisci quanti byte occupa il bundle
+			byteCount = 0;
+			//per ora prendo solo la dim del payload, manca header che forse ha dim fissa?
+			byteCount += bundle->durablesize();
+			if(bundle->priority() >= priority)
+			{
+				//byte applicabili
+				byteApp += byteCount;
+			}
+			//in ogni caso li aggiungo ai totali
+			byteTot += byteCount;
+		}
+		//link queue
+		size_t dimLinkQueue = link->queue()->size();
+		if(dimLinkQueue > 0)
+		{
+			const BundleList* bl = link->queue();
+			oasys::ScopeLock l8(bl->lock(),
+										"interface_unibocgr_dtn2::computeApplicableBacklog2");
+			BundleList::iterator bli;
+			for(bli = bl->begin(); bli != bl->end(); ++iter)
+			{
+				bundle = *bli;
+				byteCount = 0;
+				//per ora prendo solo la dim del payload, manca header che forse ha dim fissa?
+				byteCount += bundle->durablesize();
+				if(bundle->priority() >= priority)
+				{
+					//byte applicabili
+					byteApp += byteCount;
+				}
+				byteTot += byteCount;
+				}
+		}
+		loadCgrScalar(CgrTotalBacklog, byteTot);
+		loadCgrScalar(CgrApplicableBacklog, byteApp);
+	}
+	else result = -2;
+	return result;
+
+
+
+
+	/*CODICE ION
 	Sdr sdr;
 	char eid[SDRSTRING_BUFSZ];
 	VPlan *vplan;
@@ -1053,7 +1113,7 @@ int computeApplicableBacklog(unsigned long long neighbor, int priority, unsigned
 		}
 	}
 
-	return result;
+	return result;*/
 }
 
 /******************************************************************************
