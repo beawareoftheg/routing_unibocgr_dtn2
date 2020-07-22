@@ -111,7 +111,7 @@ void UniboCGRBundleRouter::shutdown() {
     //Giacomo: call shutdown
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    destroy_contact_graph_routing();
+    destroy_contact_graph_routing(tv.tv_sec);
 }
 
 //----------------------------------------------------------------------
@@ -853,13 +853,10 @@ UniboCGRBundleRouter::route_bundle(Bundle* bundle, bool skip_check_next_hop)
     struct timeval tv;
     gettimeofday(&tv, NULL);
     std::string res = "";
-    //Devo aggiungere ad callUniboCGR un parametro: le code
-    //opure ancora meglio: aggiungere una funzione a questa classe
-    //che dato un neighbor e priorità (forse facoltativa?) restituisca le code per quel neighbor
     callUniboCGR(tv.tv_sec, bundle, &res);
     log_debug("unibocgr return %s", res);
-   //Da sostiturie al posto di bundle->dest() ci devo mettere res
-    route_table_->get_matching(bundle->dest(), null_link, &matches);
+    EndpointID* eidRes = new EndpointID(res);
+    route_table_->get_matching(eidRes, null_link, &matches);
 
     // sort the matching routes by priority, allowing subclasses to
     // override the way in which the sorting occurs

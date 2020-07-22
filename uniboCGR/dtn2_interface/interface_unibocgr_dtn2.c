@@ -22,7 +22,7 @@
 #include <string.h>
 
 
-//#include "../ported_from_ion/general_functions_ported_from_ion.h"
+#include "../ported_from_ion/general_functions_ported_from_ion.h"
 
 #include "../library/commonDefines.h"
 #include "../cgr/cgr.h"
@@ -232,7 +232,7 @@ static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bund
 		convert << s;
 		convert >> destNode;
 		CgrBundle->terminus_node = destNode;
-
+/*
 #if (MSR == 1)
 		CgrBundle->msrRoute = NULL;
 		result = get_cgrr_ext_block(IonBundle, &cgrrBlk);
@@ -253,7 +253,7 @@ static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bund
 				MRELEASE(geoRoute.nodes);
 			}
 		}
-#endif
+#endif*/
 		if (result != -2)
 		{
 			CLEAR_FLAGS(CgrBundle->flags); //reset previous mask
@@ -281,8 +281,8 @@ static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bund
 
 			offset = Dtn2Bundle->creation_ts().seconds_ + EPOCH_2000_SEC - reference_time;
 			//offset è la differenza tra la creazione del bundle e il momento di partenza del demone dtnd
-			CgrBundle->expiration_time = IonBundle->expirationTime
-					- IonBundle->id.creationTime.seconds + offset;
+			//CgrBundle->expiration_time = IonBundle->expirationTime
+			//		- IonBundle->id.creationTime.seconds + offset;
 
 			CgrBundle->expiration_time = Dtn2Bundle->expiration() + offset;
 					//Giacomo: trova src e sostituisci a dest
@@ -303,7 +303,7 @@ static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bund
 			// praticamente la lunghezza totale di tutto il bundle intero
 			print_log_bundle_id    ((unsigned long long ) sendNode,
 					Dtn2Bundle->creation_ts().seconds_, Dtn2Bundle->creation_ts().seqno_,
-					/*IonBundle->totalAduLength,*/ Dtn2Bundle->frag_offset);
+					10, Dtn2Bundle->frag_offset);
 			writeLog("Payload length: %zu.", Dtn2Bundle->payload());
 
 			result = 0;
@@ -313,45 +313,7 @@ static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bund
 	return result;
 }
 
-/******************************************************************************
- *
- * \par Function Name:
- *      convert_scalar_from_ion_to_cgr
- *
- * \brief  Convert a scalar type from ION to this CGR's implementation.
- *
- *
- * \par Date Written:
- *      19/02/20
- *
- * \return int
- *
- * \retval   0  Success case
- * \retval  -1  Arguments error
- *
- * \param[in]   *ion_scalar   The scalar type in ION.
- * \param[out]  *cgr_scalar   The scalar type in this CGR's implementation
- *
- *
- * \par Revision History:
- *
- *  DD/MM/YY |  AUTHOR         |   DESCRIPTION
- *  -------- | --------------- | -----------------------------------------------
- *  19/02/20 | L. Persampieri  |  Initial Implementation and documentation.
- *****************************************************************************/
-static int convert_scalar_from_ion_to_cgr(Scalar *ion_scalar, CgrScalar *cgr_scalar)
-{
-	int result = -1;
 
-	if (ion_scalar != NULL && cgr_scalar != NULL)
-	{
-		cgr_scalar->gigs = ion_scalar->gigs;
-		cgr_scalar->units = ion_scalar->units;
-		result = 0;
-	}
-
-	return result;
-}
 
 /******************************************************************************
  *
@@ -425,10 +387,7 @@ static int convert_scalar_from_cgr_to_ion(CgrScalar *cgr_scalar, Scalar *ion_sca
 static int convert_routes_from_cgr_to_dtn2(long unsigned int evc, List cgrRoutes, std::string *res)
 {
 	ListElt *elt;
-	PsmAddress addr, hops;
-	CgrRoute *IonRoute = NULL;
 	Route *current;
-	RouteEntryVec::const_iterator iter;
 	size_t count = 0;
 	int result = 0;
 
@@ -442,7 +401,8 @@ static int convert_routes_from_cgr_to_dtn2(long unsigned int evc, List cgrRoutes
 			streamNode << toNode << current->neighbor;
 			//Giacomo: con ste stringhe è una bega
 			res += streamNode.str();
-			res += " ";
+			//Giacomo: da gestire la possibilità di avere + di un risultato
+			//res += " ";
 			/*
 			IonRoute->toNodeNbr = current->neighbor;
 			IonRoute->fromTime = current->fromTime + reference_time;
@@ -618,8 +578,6 @@ static int add_contact(char * fileline)
 static int read_file_contactranges(char * filename)
 {
 	int result = 0, totAdded = 0, stop = 0;
-	PsmAddress nodeAddr;
-	IonCXref *currentIonContact = NULL;
 	int skip = 0, count = 0;
 	int result_contacts = 0, result_ranges = 0;
 	int fd = open(filename, O_RDONLY);
