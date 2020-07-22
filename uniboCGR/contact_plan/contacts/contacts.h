@@ -160,7 +160,7 @@ extern "C"
 {
 #endif
 
-extern int compare_contacts(void *this, void *other);
+extern int compare_contacts(void *first, void *second);
 extern Contact* create_contact(unsigned long long fromNode, unsigned long long toNode,
 		time_t fromTime, time_t toTime, long unsigned int xmitRate, float confidence, CtType type);
 extern void free_contact(void*);

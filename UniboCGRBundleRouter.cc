@@ -58,7 +58,7 @@
 #include "session/Session.h"
 
 //Interface for UniboCGR
-#include "uniboCGR/interface_unibocgr_dtn2.h"
+#include "uniboCGR/dtn2_interface/interface_unibocgr_dtn2.h"
 
 namespace dtn {
 
@@ -78,7 +78,7 @@ UniboCGRBundleRouter::UniboCGRBundleRouter(const char* classname,
 
     // register the global shutdown function
     BundleDaemon::instance()->set_rtr_shutdown(
-            table_based_router_shutdown, (void *) 0);
+    		unibo_cgr_router_shutdown, (void *) 0);
    //Giacomo:: getting necessary info & call initialize
    struct timeval tv;
    gettimeofday(&tv, NULL);
@@ -780,7 +780,7 @@ UniboCGRBundleRouter::fwd_to_nexthop(Bundle* bundle, RouteEntry* route)
     // always add the bundle to the link's deferred list so that they will
     // be delivered in the correct order. future calls to check_next_hop
     // will move the bundle to the transmit queue in due time
-    DeferredList* deferred = deferred_list(link);
+    DeferredList* deferred = dtn::UniboCGRBundleRouter::deferred_list(link);
     if (! bundle->is_queued_on(deferred->list())) {
         BundleRef bref(bundle, "UniboCGRBundleRouter::fwd_to_nexthop");
         ForwardingInfo info(ForwardingInfo::NONE,
@@ -806,12 +806,14 @@ UniboCGRBundleRouter::fwd_to_nexthop(Bundle* bundle, RouteEntry* route)
 }
 
 //----------------------------------------------------------------------
-UniboCGRBundleRouter::RouteEntry*
-UniboCGRBundleRouter::getLinkForNode(unsigned long long neighbor)
+dtn::RouteEntry*
+UniboCGRBundleRouter::getLinkForNode(int neighbor)
 {
     //Giacomo: dal neighbor forma il nome completo del nodo (ipn:neighbor.0)
     //poi consulta la routing table e ottieni in matches il nexthop link
-    RouteEntryVec matches;
+    RouteEntryVec matchess;
+    RouteEntryVec::iterator iters;
+    LinkRef null_link("UniboCGRBundleRouter::route_bundle");
     std::stringstream convert;
     std::string eids;
     convert << "ipn:";
@@ -819,12 +821,10 @@ UniboCGRBundleRouter::getLinkForNode(unsigned long long neighbor)
     convert << ".0";
     convert >> eids;
     EndpointID* ied = new EndpointID(eids);
-	route_table_->get_matching(*ied,null_link,&matches);
-    LinkRef null_link("UniboCGRBundleRouter::route_bundle");
-    RouteEntryVec matches;
-    RouteEntryVec::iterator iter;
-    route_table_->get_matching(eid, null_link, &matches); 
-    return matches.begin();
+	route_table_->get_matching(*ied,null_link,&matchess);
+	iters = matchess.begin();
+    RouteEntry* res = *iters;
+    return res;
 }
 
 //----------------------------------------------------------------------
@@ -856,7 +856,7 @@ UniboCGRBundleRouter::route_bundle(Bundle* bundle, bool skip_check_next_hop)
     callUniboCGR(tv.tv_sec, bundle, &res);
     log_debug("unibocgr return %s", res);
     EndpointID* eidRes = new EndpointID(res);
-    route_table_->get_matching(eidRes, null_link, &matches);
+    route_table_->get_matching(*eidRes, null_link, &matches);
 
     // sort the matching routes by priority, allowing subclasses to
     // override the way in which the sorting occurs
@@ -877,7 +877,7 @@ UniboCGRBundleRouter::route_bundle(Bundle* bundle, bool skip_check_next_hop)
             continue;
         }
 
-        DeferredList* dl = deferred_list(route->link());
+        DeferredList* dl = dtn::UniboCGRBundleRouter::deferred_list(route->link());
 
         if (dl == 0)
           continue;
@@ -949,7 +949,7 @@ UniboCGRBundleRouter::check_next_hop(const LinkRef& next_hop)
     // the deferred list, invalidating any iterators pointing to its
     // position, make sure to advance the iterator before processing
     // the current bundle
-    DeferredList* deferred = deferred_list(next_hop);
+    DeferredList* deferred = dtn::UniboCGRBundleRouter::deferred_list(next_hop);
 
     // XXX/dz only move up to the Link high queue limit bundles in any one call
     // otherwise there is always space available in the queue and this loop

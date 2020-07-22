@@ -62,7 +62,7 @@ extern "C"
 {
 #endif
 
-extern int compare_ranges(void *this, void *other);
+extern int compare_ranges(void *first, void *second);
 extern void free_range(void*);
 
 extern int create_RangesGraph();

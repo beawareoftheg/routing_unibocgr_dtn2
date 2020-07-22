@@ -135,7 +135,7 @@ typedef struct cgrRoute
 	/**
 	 * \brief Bytes not overbooked (no reforwarding)
 	 */
-	CgrScalar protected;
+	CgrScalar protecteds;
 	/************************************************/
 } Route;
 

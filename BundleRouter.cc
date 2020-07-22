@@ -90,7 +90,7 @@ BundleRouter::create_router(const char* type)
         return new TcaRouter(TcaRouter::TCA_GATEWAY);
     }
     else if (!strcmp(type, "uniboCGR")) {
-        return new TcaRouter(TcaRouter::TCA_GATEWAY);
+        return new UniboCGRBundleRouter("UniboCGRBundleRouter", "uniboCGR");
     }
 #if defined(XERCES_C_ENABLED) && defined(EXTERNAL_DP_ENABLED)
     else if (strcmp(type, "external") == 0) {

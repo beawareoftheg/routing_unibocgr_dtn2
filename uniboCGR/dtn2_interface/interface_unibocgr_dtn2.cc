@@ -13,7 +13,11 @@
  *  \par Supervisor
  *       Carlo Caini, carlo.caini@unibo.it
  */
+#ifdef HAVE_CONFIG_H
+#  include <dtn-config.h>
+#endif
 #include "interface_unibocgr_dtn2.h"
+//include from dtn2
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -22,7 +26,6 @@
 #include <string.h>
 
 
-#include "../ported_from_ion/general_functions_ported_from_ion.h"
 
 #include "../library/commonDefines.h"
 #include "../cgr/cgr.h"
@@ -42,6 +45,7 @@
 //Giacomo: DA MODIFICARE
 #define NOMINAL_PRIMARY_BLKSIZE	29 // from ION 4.0.0: bpv7/library/libbpP.c
 #define MSR 0
+#define EPOCH_2000_SEC 946684800
 
 /**
  * \brief This time is used by the CGR as time 0.
@@ -58,7 +62,7 @@ static List excludedNeighbors = NULL;
 /**
  * \brief The current bundle received from DTN2.
  */
-static Bundle *Dtn2Bundle = NULL;
+static dtn::Bundle *Dtn2BundleS = NULL;
 /**
  * \brief CgrBundle used during the current call.
  */
@@ -207,23 +211,25 @@ static int get_cgrr_ext_block(Bundle *bundle, CGRRouteBlock **resultBlk)
  *  -------- | --------------- | -----------------------------------------------
  *  05/07/20 | G. Gori		    |  Initial Implementation and documentation.
  *****************************************************************************/
-static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bundle, CgrBundle *CgrBundle)
+static int convert_bundle_from_dtn2_to_cgr(time_t current_time, dtn::Bundle *Dtn2Bundle, CgrBundle *CgrBundle)
 {
 	//Giacomo: qua il codice è c, forse è meglio passare campi semplici invece che Bundle che è definito in c++?
 	//Primo tentativo: faccio come se il codice fosse C++
 	//TODO Consider to take count of extensions
 	int result = -1;
 	time_t offset;
+	/*
 #if (MSR == 1)
 	CGRRouteBlock *cgrrBlk;
 #endif
 #if (CGR_AVOID_LOOP > 0)
 	GeoRoute geoRoute;
-#endif
+#endif*/
 
 	if (Dtn2Bundle != NULL && CgrBundle != NULL)
 	{
-		std::string ipnName = Dtn2Bundle->dest()->str();
+		dtn::EndpointID asd;
+		std::string ipnName = Dtn2Bundle->dest().str();
 		std::string delimiter1 = ":";
 		std::string delimiter2 = ".";
 		std::string s = ipnName.substr(ipnName.find(delimiter1) + 1, ipnName.find(delimiter2) - 1);
@@ -286,7 +292,7 @@ static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bund
 
 			CgrBundle->expiration_time = Dtn2Bundle->expiration() + offset;
 					//Giacomo: trova src e sostituisci a dest
-			std::string ipnName2 = Dtn2Bundle->source()->str();
+			std::string ipnName2 = Dtn2Bundle->source().str();
 			std::string s2 = ipnName2.substr(ipnName2.find(delimiter1) + 1, ipnName2.find(delimiter2) - 1);
 			std::stringstream converts;
 			long sendNode;
@@ -301,9 +307,9 @@ static int convert_bundle_from_dtn2_to_cgr(time_t current_time, Bundle *Dtn2Bund
 			//Giacomo: non sono riusdito ad ottenere totalAduLength
 			//Esso è la somma tra tutti i fragmentation offset e il payload dell'ultimo frammento
 			// praticamente la lunghezza totale di tutto il bundle intero
-			print_log_bundle_id    ((unsigned long long ) sendNode,
-					Dtn2Bundle->creation_ts().seconds_, Dtn2Bundle->creation_ts().seqno_,
-					10, Dtn2Bundle->frag_offset);
+			//print_log_bundle_id    ((unsigned long long ) sendNode,
+			//		Dtn2Bundle->creation_ts().seconds_, Dtn2Bundle->creation_ts().seqno_,
+			//		10, Dtn2Bundle->frag_offset);
 			writeLog("Payload length: %zu.", Dtn2Bundle->payload());
 
 			result = 0;
@@ -452,7 +458,7 @@ static int convert_routes_from_cgr_to_dtn2(long unsigned int evc, List cgrRoutes
  * \retval  -3   Can't read all info of the contact
  * \retval  -4   Can't read fromTime or toTime
  *
- * \param[in]   char*	The line read from the file
+ * \param[in]   fileline	The line read from the file
  *
  *
  * \par Revision History:
@@ -469,11 +475,11 @@ static int add_contact(char * fileline)
 	long unsigned int xn = 0;
 	CgrContact.type = Scheduled;
 	//fromTime
-	if(res[count] == '+')
+	if(fileline[count] == '+')
 	{
 		count++;
-		while(res[count] >= 48 && res[count] <= 57) {
-			n = n * 10 + res[count] - '0';
+		while(fileline[count] >= 48 && fileline[count] <= 57) {
+			n = n * 10 + fileline[count] - '0';
 			count++;
 		}
 		count++; 
@@ -482,11 +488,11 @@ static int add_contact(char * fileline)
 	}
 	else result = -4;
 	//toTime
-	if(res[count] == '+')
+	if(fileline[count] == '+')
 	{
 		count++;
-		while(res[count] >= 48 && res[count] <= 57) {
-			n = n * 10 + res[count] - '0';
+		while(fileline[count] >= 48 && fileline[count] <= 57) {
+			n = n * 10 + fileline[count] - '0';
 			count++;
 		}
 		count++;
@@ -495,24 +501,24 @@ static int add_contact(char * fileline)
 	}
 	else result = -4;
 	//fromNode
-	while(res[count] >= 48 && res[count] <= 57) {
-			fn = fn * 10 + res[count] - '0';
+	while(fileline[count] >= 48 && fileline[count] <= 57) {
+			fn = fn * 10 + fileline[count] - '0';
 			count++;
 		}
 	count++;
 	CgrContact.fromNode = fn ;
 	fn=0;
 	//toNode
-	while(res[count] >= 48 && res[count] <= 57) {
-			fn = fn * 10 + res[count] - '0';
+	while(fileline[count] >= 48 && fileline[count] <= 57) {
+			fn = fn * 10 + fileline[count] - '0';
 			count++;
 		}
 	count++;
 	CgrContact.toNode = fn ;
 	fn=0;
 	//txrate
-	while(res[count] >= 48 && res[count] <= 57) {
-			xn = xn * 10 + res[count] - '0';
+	while(fileline[count] >= 48 && fileline[count] <= 57) {
+			xn = xn * 10 + fileline[count] - '0';
 			count++;
 			result=0;
 		}
@@ -550,9 +556,112 @@ static int add_contact(char * fileline)
 /******************************************************************************
  *
  * \par Function Name:
+ *      add_range
+ *
+ * \brief  Add a range to the ranges graph of this CGR's implementation.
+ *
+ *
+ * \par Date Written:
+ *      02/07/20
+ *
+ * \return int
+ *
+ * \retval   1   Range added
+ * \retval   0   Range's arguments error
+ * \retval  -1   The range overlaps with other ranges
+ * \retval  -2   MWITHDRAW error
+ * \retval  -3   ION's range points to NULL
+ *
+ * \param[in]  char*		The line that contains the range
+ *
+ *
+ * \par Revision History:
+ *
+ *  DD/MM/YY |  AUTHOR         |   DESCRIPTION
+ *  -------- | --------------- | -----------------------------------------------
+ *  02/07/20 | G. Gori		    |  Initial Implementation and documentation.
+ *****************************************************************************/
+static int add_range(char* fileline)
+{
+	Range CgrRange;
+	int result = -1;
+	int n = 0;
+	int count = 9;
+	unsigned int ow = 0;
+	long long fn = 0;
+	//fromTime
+	if(fileline[count] == '+')
+	{
+		count++;
+		while(fileline[count] >= 48 && fileline[count] <= 57) {
+			n = n * 10 + fileline[count] - '0';
+			count++;
+		}
+		count++; 
+		CgrRange.fromTime = n - reference_time;
+		n=0;
+	}
+	else result = -4;
+	//toTime
+	if(fileline[count] == '+')
+	{
+		count++;
+		while(fileline[count] >= 48 && fileline[count] <= 57) {
+			n = n * 10 + fileline[count] - '0';
+			count++;
+		}
+		count++; 
+		CgrRange.fromTime = n - reference_time;
+		n=0;
+	}
+	else result = -4;
+	//fromNode
+	while(fileline[count] >= 48 && fileline[count] <= 57) {
+			fn = fn * 10 + fileline[count] - '0';
+			count++;
+		}
+	count++;
+	CgrRange.fromNode = fn ;
+	fn=0;
+	//toNode
+	while(fileline[count] >= 48 && fileline[count] <= 57) {
+			fn = fn * 10 + fileline[count] - '0';
+			count++;
+		}
+	count++;
+	CgrRange.toNode = fn ;
+	//owlt
+	while(fileline[count] >= 48 && fileline[count] <= 57) {
+			ow = ow * 10 + fileline[count] - '0';
+			count++;
+			result = 0;
+		}
+	count++;
+	CgrRange.owlt = ow ;
+	if (result == 0)
+	{
+		result = addRange(CgrRange.fromNode, CgrRange.toNode, CgrRange.fromTime, CgrRange.toTime,
+				CgrRange.owlt);
+		if(result >= 1)
+		{
+			// result == 2 : owlt revised, consider it as "new range"
+			result = 1;
+		}
+	}
+	else
+	{
+		result = -3;
+	}
+	return result;
+}
+
+
+/******************************************************************************
+ *
+ * \par Function Name:
  *      read_file_contactranges
  *
- * \brief  Read and add all new contacts or ranges of the file with filename 
+ * \brief  Read and add all new contacts or ranges of the file with filename
  * 		  specified in the first parameter to the
  *         contacts graph of thic CGR's implementation.
  *
@@ -647,106 +756,7 @@ static int read_file_contactranges(char * filename)
 	return result;
 }
 
-/******************************************************************************
- *
- * \par Function Name:
- *      add_range
- *
- * \brief  Add a range to the ranges graph of this CGR's implementation.
- *
- *
- * \par Date Written:
- *      02/07/20
- *
- * \return int
- *
- * \retval   1   Range added
- * \retval   0   Range's arguments error
- * \retval  -1   The range overlaps with other ranges
- * \retval  -2   MWITHDRAW error
- * \retval  -3   ION's range points to NULL
- *
- * \param[in]  char*		The line that contains the range
- *
- *
- * \par Revision History:
- *
- *  DD/MM/YY |  AUTHOR         |   DESCRIPTION
- *  -------- | --------------- | -----------------------------------------------
- *  02/07/20 | G. Gori		    |  Initial Implementation and documentation.
- *****************************************************************************/
-static int add_range(char* fileline)
-{
-	Range CgrRange;
-	int result = -1;
-	int n = 0;
-	unsigned int ow = 0;
-	long long fn = 0;
-	//fromTime
-	if(res[count] == '+')
-	{
-		count++;
-		while(res[count] >= 48 && res[count] <= 57) {
-			n = n * 10 + res[count] - '0';
-			count++;
-		}
-		count++; 
-		CgrRange.fromTime = n - reference_time;
-		n=0;
-	}
-	else result = -4;
-	//toTime
-	if(res[count] == '+')
-	{
-		count++;
-		while(res[count] >= 48 && res[count] <= 57) {
-			n = n * 10 + res[count] - '0';
-			count++;
-		}
-		count++; 
-		CgrRange.fromTime = n - reference_time;
-		n=0;
-	}
-	else result = -4;
-	//fromNode
-	while(res[count] >= 48 && res[count] <= 57) {
-			fn = fn * 10 + res[count] - '0';
-			count++;
-		}
-	count++;
-	CgrRange.fromNode = fn ;
-	fn=0;
-	//toNode
-	while(res[count] >= 48 && res[count] <= 57) {
-			fn = fn * 10 + res[count] - '0';
-			count++;
-		}
-	count++;
-	CgrRange.toNode = fn ;
-	//owlt
-	while(res[count] >= 48 && res[count] <= 57) {
-			ow = ow * 10 + res[count] - '0';
-			count++;
-			result = 0;
-		}
-	count++;
-	CgrRange.owlt = ow ;
-	if (result == 0)
-	{
-		result = addRange(CgrRange.fromNode, CgrRange.toNode, CgrRange.fromTime, CgrRange.toTime,
-				CgrRange.owlt);
-		if(result >= 1)
-		{
-			// result == 2 : owlt revised, consider it as "new range"
-			result = 1;
-		}
-	}
-	else
-	{
-		result = -3;
-	}
-	return result;
-}
+
 
 
 
@@ -878,7 +888,7 @@ static int exclude_neighbors()
  *  -------- | --------------- | -----------------------------------------------
  *  05/07/20 | G. Gori		    |  Initial Implementation and documentation.
  *****************************************************************************/
-int callUniboCGR(time_t time, Bundle *bundle, string *res)
+int callUniboCGR(time_t time, dtn::Bundle *bundle, std::string *res)
 {
 
 	int result = -5;
@@ -978,25 +988,27 @@ int computeApplicableBacklog(unsigned long long neighbor, int priority, unsigned
 {
 	int result = -1;
 	long int byteTot, byteApp, byteCount;
-	Bundle * bundle;
+	dtn::Bundle * bundle;
 
 	if (CgrApplicableBacklog != NULL && CgrTotalBacklog != NULL)
 	{
 		//get da implementare su UniboCGRBundleRouter
-		RouteEntry* route = UniboCGRBundleRouter::getLinkForNode(neighbor);
-		const LinkRef& link = route->link();
+		dtn::RouteEntry* route = dtn::UniboCGRBundleRouter::getLinkForNode(neighbor);
+		dtn::UniboCGRBundleRouter::create_router("uniboCGR");
+		const dtn::LinkRef& link = route->link();
 		//Deferred
-		DeferredList* deferred = UniboCGRBundleRouter::deferred_list(link);
+
+		dtn::UniboCGRBundleRouter::DeferredList* deferred = dtn::UniboCGRBundleRouter::deferred_list(link);
 		oasys::ScopeLock l7(deferred->list()->lock(), 
                        "interface_unibocgr_dtn2::computeApplicableBacklog");
-		BundleList::iterator iter = deferred->list()->begin();
+		dtn::BundleList::iterator iter = deferred->list()->begin();
 		while(iter != deferred->list()->end())
 		{
 			bundle = *iter;
 			//Capisci quanti byte occupa il bundle
 			byteCount = 0;
 			//per ora prendo solo la dim del payload, manca header che forse ha dim fissa?
-			byteCount += bundle->durablesize();
+			byteCount += bundle->durable_size();
 			if(bundle->priority() >= priority)
 			{
 				//byte applicabili
@@ -1009,16 +1021,16 @@ int computeApplicableBacklog(unsigned long long neighbor, int priority, unsigned
 		size_t dimLinkQueue = link->queue()->size();
 		if(dimLinkQueue > 0)
 		{
-			const BundleList* bl = link->queue();
+			const dtn::BundleList* bl = link->queue();
 			oasys::ScopeLock l8(bl->lock(),
 										"interface_unibocgr_dtn2::computeApplicableBacklog2");
-			BundleList::iterator bli;
+			dtn::BundleList::iterator bli;
 			for(bli = bl->begin(); bli != bl->end(); ++iter)
 			{
 				bundle = *bli;
 				byteCount = 0;
 				//per ora prendo solo la dim del payload, manca header che forse ha dim fissa?
-				byteCount += bundle->durablesize();
+				byteCount += bundle->durable_size();
 				if(bundle->priority() >= priority)
 				{
 					//byte applicabili
@@ -1165,7 +1177,7 @@ int initialize_contact_graph_routing(unsigned long long ownNode, time_t time)
 
 				writeLog("Reference time (Unix time): %ld s.", (long int) reference_time);
 
-				if(update_contact_plan(fileName) < 0)
+				if(update_contact_plan(fileName, true) < 0)
 				{
 					printf("Cannot update contact plan in Unibo-CGR: can't open file");
 					result = -2;

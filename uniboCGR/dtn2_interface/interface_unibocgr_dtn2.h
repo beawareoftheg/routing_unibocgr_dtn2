@@ -17,16 +17,18 @@
 #define SOURCES_INTERFACE_UNIBO_CGR_DTN2_H_
 
 //include from dtn2
-#include "../bundling/bundle.h"
-
-#include "../../../../ici/include/ion.h"
-#include "../../../../ici/include/platform.h"
-#include "../../../../ici/include/sdrstring.h"
+#include "../../../bundling/Bundle.h"
+#include "../../RouteEntry.h"
+#include "../../UniboCGRBundleRouter.h"
+/*
+#include "../../../../../../ici/include/ion.h"
+#include "../../../../../ici/include/platform.h"
+#include "../../../../../ici/include/sdrstring.h"
 #include "../../../library/cgr.h"
 #include "../../../library/bpP.h"
-#include "bp.h"
+#include "/bp.h"
 #include "cgrr.h"
-#include "rgr.h" 
+#include "rgr.h" */
 
 #ifdef QUEUE_DELAY
 #undef QUEUE_DELAY
@@ -47,7 +49,7 @@ extern "C"
 {
 #endif
 
-extern int callUniboCGR(time_t time, Bundle *bundle,
+extern int callUniboCGR(time_t time, dtn::Bundle *bundle,
 		 std::string *res);
 extern void destroy_contact_graph_routing(time_t time);
 extern int initialize_contact_graph_routing(unsigned long long ownNode, time_t time);

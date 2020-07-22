@@ -283,7 +283,7 @@ int reached_neighbors_limit(long unsigned int neighborsLimit, long unsigned int 
  * \brief
  * 		Compute the residual backlog for the neighbor (identified from
  * 		the first hop destination node of the route) and some other fields
- * 		to manage the potential overbooking (route->protected, allotment and volume)
+ * 		to manage the potential overbooking (route->protecteds, allotment and volume)
  *
  *
  * \par Date Written:
@@ -314,7 +314,7 @@ int reached_neighbors_limit(long unsigned int neighborsLimit, long unsigned int 
  * \par Notes:
  * 			1.  The terminology and how to compute the residual backlog are explained
  * 			    in the SABR algorithm at the point 3.2.6.2 ( from a) to g) )
- * 			2.  In this function the route->protected field will be updated (overbooking management).
+ * 			2.  In this function the route->protecteds field will be updated (overbooking management).
  *
  *
  * \par Revision History:
@@ -368,19 +368,19 @@ static int computeResidualBacklog(Route *route, CgrScalar *allotment, CgrScalar 
 			/*************** OVERBOOKING MANAGEMENT ***************/
 			// Ported from ION 3.7.0
 			copyCgrScalar(allotment, volume);
-			subtractFromCgrScalar(allotment, &(route->protected));
+			subtractFromCgrScalar(allotment, &(route->protecteds));
 			if (!CgrScalarIsValid(allotment))
 			{
 				copyCgrScalar(allotment, volume);
 			}
 			else
 			{
-				copyCgrScalar(allotment, &(route->protected));
+				copyCgrScalar(allotment, &(route->protecteds));
 			}
-			subtractFromCgrScalar(&(route->protected), volume);
-			if (!CgrScalarIsValid(&(route->protected)))
+			subtractFromCgrScalar(&(route->protecteds), volume);
+			if (!CgrScalarIsValid(&(route->protecteds)))
 			{
-				loadCgrScalar(&(route->protected), 0);
+				loadCgrScalar(&(route->protecteds), 0);
 			}
 			/******************************************************/
 
@@ -768,7 +768,7 @@ static int computePBAT(Route *route, CgrBundle *bundle)
 	}
 	else
 	{
-		copyCgrScalar(&(route->protected), &totalBacklog);
+		copyCgrScalar(&(route->protecteds), &totalBacklog);
 		copyCgrScalar(&residualBacklog, &applicableBacklog);
 
 		if (computeResidualBacklog(route, &allotment, &volume, &residualBacklog) < 0)
@@ -1733,12 +1733,12 @@ static int print_phase_two_route(FILE *file, Route *route)
 #if (CGR_AVOID_LOOP > 0)
 		fprintf(file, "%-15s %-15ld %-15ld %-15g %-15s %-15ld %-15ld %-15ld %ld\n", num,
 				(long int) route->eto, (long int) route->pbat, route->routeVolumeLimit, temp,
-				route->overbooked.gigs, route->overbooked.units, route->protected.gigs,
-				route->protected.units);
+				route->overbooked.gigs, route->overbooked.units, route->protecteds.gigs,
+				route->protecteds.units);
 #else
 		fprintf(file, "%-15s %-15ld %-15ld %-15g %-15ld %-15ld %-15ld %ld\n", num,
 				(long int) route->eto, (long int) route->pbat, route->routeVolumeLimit, route->overbooked.gigs,
-				route->overbooked.units, route->protected.gigs, route->protected.units);
+				route->overbooked.units, route->protecteds.gigs, route->protecteds.units);
 #endif
 
 	}
